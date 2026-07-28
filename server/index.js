@@ -231,9 +231,10 @@ app.get('/api/stream/:infoHash', async (req, res) => {
     // Fallback: stream directly
     torrent.streamFile(file, req, res);
   } catch (e) {
+    console.error('Stream error:', e?.message || e);
     if (!res.headersSent) {
       const peers = torrent.client.torrents.find(t => t.infoHash?.toLowerCase() === infoHash.toLowerCase())?.numPeers || 0;
-      res.status(500).json({ error: e.message, peers });
+      res.status(500).json({ error: e?.message || String(e), peers });
     }
   }
 });
