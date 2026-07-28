@@ -1,6 +1,16 @@
 const axios = require('axios');
 
-const http = axios.create({ timeout: 10000, headers: { 'User-Agent': 'UnlockedMedia/1.0' } });
+const http = axios.create({ timeout: 20000, headers: { 'User-Agent': 'UnlockedMedia/1.0' } });
+
+// Retry wrapper
+async function fetchWithRetry(url, retries = 2) {
+  for (let i = 0; i <= retries; i++) {
+    try { return await http.get(url); } catch (e) {
+      if (i === retries) throw e;
+      await new Promise(r => setTimeout(r, 2000));
+    }
+  }
+}
 
 function posterUrl(i) {
   if (!i) return '';
@@ -24,7 +34,7 @@ function cleanup(items) {
 
 async function search(query) {
   const q = encodeURIComponent(query.trim().replace(/\s+/g, ' '));
-  const { data } = await http.get(`https://v3.sg.media-imdb.com/suggestion/x/${q}.json`);
+  const { data } = await fetchWithRetry(`https://v3.sg.media-imdb.com/suggestion/x/${q}.json`);
   return (data.d || []).filter(i => i.id && i.l && i.id.startsWith('tt')).map(i => ({
     id: i.id, title: i.l, year: i.y || null,
     stars: i.s || '', poster: posterUrl(i.i),
@@ -71,7 +81,7 @@ async function popularMovies() {
   const results = [];
   for (const q of queries) {
     try {
-      const { data } = await http.get(`https://v3.sg.media-imdb.com/suggestion/x/${q}.json`);
+      const { data } = await fetchWithRetry(`https://v3.sg.media-imdb.com/suggestion/x/${q}.json`);
       if (data?.d) for (const i of data.d) {
         if (i.id?.startsWith('tt') && i.l && posterUrl(i.i) && isMovie(i.qid)) {
           results.push({ id: i.id, title: i.l, year: i.y || null, stars: i.s || '', poster: posterUrl(i.i), type: 'movie' });
