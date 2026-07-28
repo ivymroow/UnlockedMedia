@@ -216,13 +216,14 @@ app.get('/api/stream/:infoHash', async (req, res) => {
       ]);
     }
 
-    // Read full file with timeout
+    // Read full file with generous timeout
     const readStream = (stream) => new Promise((resolve, reject) => {
       const chunks = [];
-      const timeout = setTimeout(() => reject(new Error('Read timeout (60s)')), 60000);
-      stream.on('data', c => { chunks.push(c); clearTimeout(timeout); setTimeout(() => {}, 60000); });
-      stream.on('end', () => { clearTimeout(timeout); resolve(Buffer.concat(chunks)); });
-      stream.on('error', e => { clearTimeout(timeout); reject(e); });
+      let bytes = 0;
+      let timer = setTimeout(() => reject(new Error(`Read timeout (10min, ${bytes} bytes)`)), 600000);
+      stream.on('data', c => { chunks.push(c); bytes += c.length; });
+      stream.on('end', () => { clearTimeout(timer); resolve(Buffer.concat(chunks)); });
+      stream.on('error', e => { clearTimeout(timer); reject(e); });
     });
 
     let outputBuffer;
