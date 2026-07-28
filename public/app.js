@@ -332,10 +332,9 @@ async function play(hash,fi,title,quality,seeds){
   } else {
     const ps=qs('#ps');if(ps)ps.textContent='No backend server available.';
   }
-    },15000);
     initCustomPlayer(video,base);
   } else {
-    perr('Streaming requires a backend server. Set your Render URL in Settings.');
+    const ps=qs('#ps');if(ps)ps.textContent='No backend server available.';
   }
 }
 
