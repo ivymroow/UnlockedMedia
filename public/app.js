@@ -285,27 +285,53 @@ async function play(hash,fi,title,quality,seeds){
   if(state.mode==='backend'){
     const base=state.backendUrl||''
     const video=qs('#player')
-    video.muted=false;video.volume=1;
-    video.src=`${base}/api/stream/${hash}?fileIndex=${fi}`;
-    video.onerror=()=>perr('Stream failed.');
-    // Poll check endpoint for status updates
-    const pollStatus=setInterval(async()=>{
+    video.style.display='none'
+    // Show centered download progress
+    const pw=qs('#pw')
+    if(pw)pw.innerHTML=`<div id="dlWrap" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:12px;padding:40px"><div class="spinner"></div><p id="dlText">Starting download...</p><div style="width:60%;max-width:300px;height:4px;background:var(--surface3);border-radius:2px;overflow:hidden"><div id="dlBar" style="height:100%;width:0%;background:var(--primary);border-radius:2px;transition:width .3s"></div></div><p id="dlInfo" style="font-size:12px;color:var(--text3)"></p></div>`
+    // Start download
+    let dlId=null,failed=false,tid=null;
+    try{
+      const r=await fetch(`${base}/api/download`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({hash,fileIndex:fi})});
+      const d=await r.json();
+      if(d.error){perr('Download error: '+d.error);return}
+      dlId=d.id;
+    }catch(e){perr('Failed: '+e.message);return}
+    // Poll until done or fallback to stream
+    const poll=async()=>{
       try{
-        const r=await fetch(`${base}/api/stream/check/${hash}`);
+        const r=await fetch(`${base}/api/download/${dlId}/status`);
         const st=await r.json();
-        const ps=qs('#ps');
-        if(ps&&st.name&&st.name!=='Unknown')ps.textContent=`Found: ${st.name}`;
-        if(ps&&st.peers>0)ps.textContent=`${st.peers} peers connected`;
-        if(ps&&st.progress>0)ps.textContent=`${Math.round(st.progress*100)}% downloaded`;
-        if(st.ready&&st.files?.length){clearInterval(pollStatus);if(ps)ps.textContent='Starting stream...';}
-      }catch{}
-    },2000);
+        if(st.error){perr(st.error);return}
+        const pct=Math.round(st.progress*100)
+        qs('#dlBar')&&(qs('#dlBar').style.width=pct+'%')
+        qs('#dlText')&&(qs('#dlText').textContent=st.done?'Processing...':`Downloading ${pct}%`)
+        qs('#dlInfo')&&(qs('#dlInfo').textContent=st.done?'':`${st.peers} peers · ${(st.speed/1e6).toFixed(1)} MB/s`)
+        if(st.done){
+          video.muted=false;video.volume=1;video.style.display='block'
+          video.src=`${base}/api/download/${dlId}/file`
+          video.onerror=()=>perr('Playback failed.')
+          initCustomPlayer(video,base)
+          if(video._enableSeek)video._enableSeek()
+          return
+        }
+        if(st.peers>0&&failed){failed=false}
+        tid=setTimeout(poll,1000)
+      }catch{tid=setTimeout(poll,2000)}
+    }
+    // Fallback to stream if no peers after 12s
+    tid=setTimeout(poll,500)
     setTimeout(()=>{
-      const pl=qs('#pl');
-      if(pl&&pl.style.display!=='none'){
-        const pw=qs('#pw');
-        if(pw)pw.innerHTML=`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:16px;padding:40px;text-align:center"><p style="color:#f87171;font-size:16px">No peers found.</p><p style="color:var(--text3);font-size:13px">Try a source with more seeds, or watch via embed:</p><button class="play-btn" onclick="window.open('https://vidsrc.to/embed/${state.data?.type||'movie'}/${state.data?.id}${state.data?.type==='tv'?'/'+selectedSeason+'/'+selectedEpisode:''}','_blank')">▶ Watch on Embed</button><button class="auth-btn" style="margin-top:8px" onclick="cp()">Go Back</button></div>`;
-      }
+      if(!qs('#dlWrap')||qs('#player').style.display==='block')return
+      if(dlId)fetch(`${base}/api/download/${dlId}/status`).catch(()=>{})
+      video.style.display='block';video.muted=false;video.volume=1
+      video.src=`${base}/api/stream/${hash}?fileIndex=${fi}`
+      video.onerror=()=>perr('Stream failed.')
+      initCustomPlayer(video,base)
+    },12000)
+  } else {
+    const ps=qs('#ps');if(ps)ps.textContent='No backend server available.';
+  }
     },15000);
     initCustomPlayer(video,base);
   } else {
