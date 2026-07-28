@@ -288,17 +288,12 @@ async function play(hash,fi,title,quality,seeds){
   qs('#app').innerHTML='<div class="player-container"><button class="player-back" onclick="cp()"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg> Back</button><div class="player-wrapper" id="pw"><video id="player" style="width:100%;height:100%;background:#000"></video><div id="customControls" style="display:flex;position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.9));padding:40px 16px 8px;z-index:5"><div style="display:flex;align-items:center;gap:10px;width:100%"><button id="ppBtn" style="background:none;border:none;color:#fff;font-size:22px;cursor:pointer;width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:50%">▶</button><span id="timeDisplay" style="color:#ccc;font-size:13px;font-family:monospace;white-space:nowrap">0:00 / 0:00</span><div style="flex:1;height:6px;background:rgba(255,255,255,.15);border-radius:3px;cursor:pointer;position:relative" id="seekBar"><div id="seekFill" style="height:100%;width:0%;background:var(--primary);border-radius:3px;pointer-events:none"></div><div id="seekThumb" style="display:none;position:absolute;top:-3.5px;width:13px;height:13px;border-radius:50%;background:var(--primary);transform:translateX(-50%);pointer-events:none;box-shadow:0 0 4px rgba(0,0,0,.5)"></div></div><div style="display:flex;align-items:center;gap:6px"><button id="volBtn" style="background:var(--primary);border:none;width:32px;height:32px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" width="16" height="16" fill="#fff"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg></button><input type="range" id="volSlider" min="0" max="1" step="0.05" value="1" style="width:50px;height:4px;-webkit-appearance:none;appearance:none;background:rgba(255,255,255,.2);border-radius:2px;outline:none;cursor:pointer" /></div><button id="fsBtn" style="background:none;border:none;color:#fff;font-size:18px;cursor:pointer;width:36px;height:36px;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg></button></div></div></div></div>'
 
   if(state.mode==='backend'){
-    // Browser WebTorrent with WebSocket bridge to server
     const base=state.backendUrl||''
     const video=qs('#player')
-    // Try server stream first (FFmpeg audio), fall back to browser WebTorrent
     video.muted=false;video.volume=1;
     video.src=`${base}/api/stream/${hash}?fileIndex=${fi}`;
-    let failed=false;
-    video.onerror=()=>{failed=true;if(!qs('#ps')){const s=document.createElement('div');s.id='ps';s.style.cssText='position:absolute;bottom:60px;left:16px;right:16px;z-index:10;color:#fff;font-size:13px;text-align:center';qs('#pw')?.appendChild(s);}browserTorrent(hash,title);};
-    video.oncanplay=()=>{if(!failed)initCustomPlayer(video,base);};
-    // Fallback to browser Torrent if server fails
-    setTimeout(()=>{if(!video.readyState||video.readyState<2){video.src='';browserTorrent(hash,title);}},12000);
+    video.onerror=()=>perr('Stream failed. Try a different source.');
+    initCustomPlayer(video,base);
   } else browserTorrent(hash,title)
 }
 
