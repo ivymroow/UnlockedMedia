@@ -73,12 +73,14 @@ app.get('/api/movie/:id/sources', async (req, res) => {
       torrentio.searchMovie(id),
       torrent.findSources(id, title || id, parseInt(year) || 0, 'movie', id),
     ]);
+    if (tio.status === 'rejected') console.log('Torrentio movie failed:', tio.reason?.message);
+    if (our.status === 'rejected') console.log('Our movie search failed:', our.reason?.message);
     const sources = [
-      ...(tio.value || []),
-      ...(our.value || []),
+      ...(tio.status === 'fulfilled' ? tio.value : []),
+      ...(our.status === 'fulfilled' ? our.value : []),
     ];
     const seen = new Set();
-    res.json(sources.filter(s => { const k = s.hash; if (seen.has(k)) return false; seen.add(k); return true; }));
+    res.json(sources.filter(s => s && s.hash && (seen.has(s.hash) ? false : seen.add(s.hash))));
   } catch (e) {
     res.status(502).json({ error: e.message });
   }
@@ -106,12 +108,14 @@ app.get('/api/show/:id/sources', async (req, res) => {
       torrentio.searchEpisode(id, parseInt(season), parseInt(episode)),
       torrent.findSources(id, query, parseInt(year) || 0, 'tv', id),
     ]);
+    if (tio.status === 'rejected') console.log('Torrentio failed:', tio.reason?.message);
+    if (our.status === 'rejected') console.log('Our search failed:', our.reason?.message);
     const sources = [
-      ...(tio.value || []),
-      ...(our.value || []),
+      ...(tio.status === 'fulfilled' ? tio.value : []),
+      ...(our.status === 'fulfilled' ? our.value : []),
     ];
     const seen = new Set();
-    res.json(sources.filter(s => { const k = s.hash; if (seen.has(k)) return false; seen.add(k); return true; }));
+    res.json(sources.filter(s => s && s.hash && (seen.has(s.hash) ? false : seen.add(s.hash))));
   } catch (e) {
     res.status(502).json({ error: e.message });
   }
