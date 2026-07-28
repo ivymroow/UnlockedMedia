@@ -294,7 +294,9 @@ async function play(hash,fi,title,quality,seeds){
     video.src=`${base}/api/stream/${hash}?fileIndex=${fi}`;
     video.onerror=()=>perr('Stream failed. Try a different source.');
     initCustomPlayer(video,base);
-  } else browserTorrent(hash,title)
+  } else {
+    perr('Streaming requires a backend server. Set your Render URL in Settings.');
+  }
 }
 
 async function browserTorrent(hash,title){
