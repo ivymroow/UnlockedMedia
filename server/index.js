@@ -66,9 +66,19 @@ app.get('/api/movie/:id', async (req, res) => {
 });
 
 app.get('/api/movie/:id/sources', async (req, res) => {
+  const { id } = req.params;
+  let { title, year } = req.query;
   try {
-    const sources = await torrentio.searchMovie(req.params.id);
-    res.json(sources);
+    const [tio, our] = await Promise.allSettled([
+      torrentio.searchMovie(id),
+      torrent.findSources(id, title || id, parseInt(year) || 0, 'movie', id),
+    ]);
+    const sources = [
+      ...(tio.value || []),
+      ...(our.value || []),
+    ];
+    const seen = new Set();
+    res.json(sources.filter(s => { const k = s.hash; if (seen.has(k)) return false; seen.add(k); return true; }));
   } catch (e) {
     res.status(502).json({ error: e.message });
   }
@@ -88,14 +98,20 @@ app.get('/api/show/:id/episodes', async (req, res) => {
 
 app.get('/api/show/:id/sources', async (req, res) => {
   const { id } = req.params;
-  const { season, episode } = req.query;
+  const { title, year, season, episode } = req.query;
   try {
-    if (season && episode) {
-      const sources = await torrentio.searchEpisode(id, parseInt(season), parseInt(episode));
-      res.json(sources);
-    } else {
-      res.json([]);
-    }
+    if (!season || !episode) { res.json([]); return; }
+    const query = `${title || ''} S${String(season).padStart(2, '0')}E${String(episode).padStart(2, '0')}`;
+    const [tio, our] = await Promise.allSettled([
+      torrentio.searchEpisode(id, parseInt(season), parseInt(episode)),
+      torrent.findSources(id, query, parseInt(year) || 0, 'tv', id),
+    ]);
+    const sources = [
+      ...(tio.value || []),
+      ...(our.value || []),
+    ];
+    const seen = new Set();
+    res.json(sources.filter(s => { const k = s.hash; if (seen.has(k)) return false; seen.add(k); return true; }));
   } catch (e) {
     res.status(502).json({ error: e.message });
   }
@@ -160,8 +176,8 @@ app.get('/api/stream/:infoHash', async (req, res) => {
     const magnet = torrent.makeMagnet(infoHash, 'stream');
     const tor = torrent.getOrAddTorrent(magnet);
 
-    // Wait for metadata (generous — DHT can be slow)
-    await torrent.waitForMetadata(tor, 35000);
+    // Wait for metadata (short — server DHT is slow on cloud)
+    await torrent.waitForMetadata(tor, 10000);
 
     // Give files a moment to populate after metadata event
     let file = tor.files?.[fileIndex] || torrent.getFirstVideoFile(tor);
