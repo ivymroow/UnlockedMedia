@@ -313,8 +313,7 @@ async function play(hash,fi,title,quality,seeds){
       }catch{setTimeout(poll,2000)}
     };
     setTimeout(poll,500);
-    // Fallback to streaming after 30s if no peers
-    setTimeout(()=>{if(qs('#dlWrap')){qs('#dlWrap')?.remove();video.muted=false;video.volume=1;video.src=`${base}/api/stream/${hash}?fileIndex=${fi}`;video.onerror=()=>perr('Stream failed.');initCustomPlayer(video,base);}},30000);
+    // No streaming fallback — wait for full download. User can go back if stuck.
   } else {
     const ps=qs('#ps');if(ps)ps.textContent='No backend server available.';
   }
