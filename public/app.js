@@ -285,29 +285,40 @@ async function play(hash,fi,title,quality,seeds){
   if(state.mode==='backend'){
     const base=state.backendUrl||''
     const video=qs('#player')
-    // Stream instantly for playback, download in background for seeking
-    video.muted=false;video.volume=1;
-    video.src=`${base}/api/stream/${hash}?fileIndex=${fi}`;
-    video.onerror=()=>perr('Stream failed.');
-    initCustomPlayer(video,base);
+    // Download full episode first, then play with full seeking
+    const ov=document.createElement('div');
+    ov.id='dlWrap';
+    ov.style.cssText='position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:10;background:var(--bg);gap:12px;padding:40px';
+    ov.innerHTML='<div class="spinner"></div><p id="dlText">Starting download...</p><div style="width:60%;max-width:400px;height:6px;background:var(--surface3);border-radius:3px;overflow:hidden"><div id="dlBar" style="height:100%;width:0%;background:var(--primary);border-radius:3px;transition:width .3s"></div></div><p id="dlInfo" style="font-size:13px;color:var(--text3)"></p>';
+    qs('#pw')?.appendChild(ov);
 
-    // Background download — when done, swap to full file for seeking
-    (async()=>{
-      try{
-        const r=await fetch(`${base}/api/download`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({hash,fileIndex:fi})});
-        const d=await r.json();
-        if(d.error)return;
-        const dlId=d.id;
-        const poll=async()=>{
-          try{
-            const s=await(await fetch(`${base}/api/download/${dlId}/status`)).json();
-            if(s.done){const t=video.currentTime;const p=!video.paused;video.src=`${base}/api/download/${dlId}/file`;video.currentTime=t;if(p)video.play().catch(()=>{});if(video._enableSeek)video._enableSeek();return;}
-            setTimeout(poll,2000);
-          }catch{setTimeout(poll,3000)}
-        };
-        setTimeout(poll,3000);
-      }catch{}
-    })();
+    try{
+      const r=await fetch(`${base}/api/download`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({hash,fileIndex:fi})});
+      const d=await r.json();
+      if(d.error){perr('Download error: '+d.error);return}
+      const dlId=d.id;
+      const poll=async()=>{
+        const r=await fetch(`${base}/api/download/${dlId}/status`);
+        if(r.status===404){perr('Download failed. Try again.');return}
+        if(!r.ok){setTimeout(poll,2000);return}
+        const st=await r.json();
+        if(st.error){perr(st.error);return}
+        const pct=Math.round(st.progress*100);
+        const bar=qs('#dlBar');const txt=qs('#dlText');const info=qs('#dlInfo');
+        if(bar)bar.style.width=pct+'%';if(txt)txt.textContent=`Downloading ${pct}%`;if(info)info.textContent=`${st.peers} peers · ${(st.speed/1e6).toFixed(1)} MB/s`;
+        if(st.done){
+          ov.remove();video.muted=false;video.volume=1;
+          video.src=`${base}/api/download/${dlId}/file`;
+          video.onerror=()=>perr('Playback failed.');
+          initCustomPlayer(video,base);
+          if(video._enableSeek)video._enableSeek();
+          return;
+        }
+        setTimeout(poll,1000);
+      };
+      setTimeout(poll,500);
+    }catch(e){perr('Failed: '+e.message)}
+
     // No streaming fallback — wait for full download. User can go back if stuck.
   } else {
     const ps=qs('#ps');if(ps)ps.textContent='No backend server available.';
