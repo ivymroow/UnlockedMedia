@@ -3,13 +3,16 @@ const path = require('path');
 
 // Try to find ffmpeg
 function findFfmpeg() {
+  const { execSync } = require('child_process');
+  // Try common Unix paths first
   const candidates = [
-    'ffmpeg',
-    path.join(__dirname, '..', 'ffmpeg', 'ffmpeg.exe'),
+    '/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg',
+    process.platform === 'win32' ? path.join(__dirname, '..', 'ffmpeg', 'ffmpeg.exe') : 'ffmpeg',
     'C:\\Users\\depis\\AppData\\Local\\Microsoft\\WinGet\\Packages\\Gyan.FFmpeg.Essentials_Microsoft.Winget.Source_8wekyb3d8bbwe\\ffmpeg-8.1.1-essentials_build\\bin\\ffmpeg.exe',
   ];
   for (const c of candidates) {
-    try { require('child_process').execSync(`"${c}" -version`, { stdio: 'pipe', timeout: 3000 }); return c; } catch {}
+    if (!c) continue;
+    try { execSync(`${c} -version`, { stdio: 'pipe', timeout: 3000 }); return c; } catch {}
   }
   return null;
 }
