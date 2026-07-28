@@ -85,4 +85,33 @@ async function transcodeStream(inputStream, req, res) {
   return ff;
 }
 
-module.exports = { transcodeStream, hasFfmpeg: !!FFMPEG };
+async function transcodeBuffer(input) {
+  if (!FFMPEG) return input;
+  const { spawn } = require('child_process');
+  return new Promise((resolve, reject) => {
+    const ff = spawn(FFMPEG, [
+      '-i', 'pipe:0',
+      '-c:v', 'copy',
+      '-c:a', 'aac',
+      '-b:a', '128k',
+      '-ac', '2',
+      '-f', 'mp4',
+      '-movflags', 'frag_keyframe+empty_moov',
+      '-preset', 'ultrafast',
+      '-loglevel', 'error',
+      'pipe:1',
+    ], { stdio: ['pipe', 'pipe', 'pipe'] });
+    const chunks = [];
+    ff.stdout.on('data', c => chunks.push(c));
+    ff.stdout.on('end', () => resolve(Buffer.concat(chunks)));
+    ff.stderr.on('data', () => {});
+    ff.on('error', () => reject(new Error('FFmpeg error')));
+    ff.on('close', (code) => { if (code !== 0) reject(new Error('FFmpeg exit: '+code)); });
+    ff.stdin.end(input);
+  });
+}
+
+// Wait at startup in case FFMPEG check hasn't run
+setTimeout(() => {}, 0);
+
+module.exports = { transcodeStream, transcodeBuffer, hasFfmpeg: !!FFMPEG };

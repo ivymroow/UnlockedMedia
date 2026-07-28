@@ -55,14 +55,22 @@ function createDownload(infoHash, fileIndex) {
 
 async function finalizeDownload(entry, file, tor) {
   try {
+    // Read raw file
     const chunks = [];
     const stream = file.createReadStream();
     for await (const chunk of stream) chunks.push(chunk);
-    entry.buffer = Buffer.concat(chunks);
+    const rawBuf = Buffer.concat(chunks);
+    try { tor.destroy(); } catch {}
+
+    // Transcode audio through FFmpeg (E-AC3 → AAC)
+    const { transcodeBuffer } = require('./transcode');
+    if (transcodeBuffer) {
+      entry.buffer = await transcodeBuffer(rawBuf);
+    } else {
+      entry.buffer = rawBuf;
+    }
     entry.done = true;
     entry.progress = 1;
-    // Clean up torrent
-    try { tor.destroy(); } catch {}
   } catch (e) {
     entry.error = e.message;
   }
