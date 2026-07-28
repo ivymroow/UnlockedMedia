@@ -337,6 +337,12 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
 });
 
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err?.message || err);
+  if (!res.headersSent) res.status(500).json({ error: err?.message || 'Internal error' });
+});
+
 const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n  🎬 UnlockedMedia running at http://0.0.0.0:${PORT}`);
   console.log(`  🌐 Public: http://localhost:${PORT}\n`);
