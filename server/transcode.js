@@ -73,7 +73,10 @@ async function transcodeStream(inputStream, req, res) {
     if (code !== 0) console.log('FFmpeg exit code:', code, ffLogs.slice(-200));
   });
 
-  ff.on('error', () => { try { res.end(); } catch {} });
+  ff.on('error', () => {});
+  ff.stdin.on('error', () => {});
+  ff.stdout.on('error', () => {});
+  ff.stderr.on('error', () => {});
   ff.stdout.on('end', () => { try { res.end(); } catch {} });
 
   return ff;
