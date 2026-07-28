@@ -287,6 +287,14 @@ async function play(hash,fi,title,quality,seeds){
     const video=qs('#player')
     video.muted=false;video.volume=1;
     video.src=`${base}/api/stream/${hash}?fileIndex=${fi}`;
+    video.onerror=()=>perr('Stream failed.');
+    setTimeout(()=>{
+      const pl=qs('#pl');
+      if(pl&&pl.style.display!=='none'){
+        const pw=qs('#pw');
+        if(pw)pw.innerHTML=`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:16px;padding:40px;text-align:center"><p style="color:#f87171;font-size:16px">No peers found.</p><p style="color:var(--text3);font-size:13px">Try a source with more seeds, or watch via embed:</p><button class="play-btn" onclick="window.open('https://vidsrc.to/embed/${state.data?.type||'movie'}/${state.data?.id}${state.data?.type==='tv'?'/'+selectedSeason+'/'+selectedEpisode:''}','_blank')">▶ Watch on Embed</button><button class="auth-btn" style="margin-top:8px" onclick="cp()">Go Back</button></div>`;
+      }
+    },15000);
     initCustomPlayer(video,base);
   } else {
     perr('Streaming requires a backend server. Set your Render URL in Settings.');
