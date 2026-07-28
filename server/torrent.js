@@ -8,7 +8,10 @@ const fs = require('fs');
 const MemoryChunkStore = require('memory-chunk-store');
 
 const client = new WebTorrent({
-  maxConns: 50,
+  maxConns: 25,
+  dht: false,
+  utp: false,
+  tcp: true,
   store: chunkLength => new MemoryChunkStore(chunkLength),
 });
 
