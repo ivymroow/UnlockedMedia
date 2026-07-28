@@ -224,17 +224,17 @@ function getOrAddTorrent(magnet) {
     throw new Error(`Cannot add torrent: ${e.message}`);
   }
   tor._lastUsed = Date.now();
-  torrentCache.set(key, tor);
+  const cacheKey = magnet.toLowerCase();
+  torrentCache.set(cacheKey, tor);
 
   // Cleanup: destroy when done + no active streams, OR after 10 min idle
   const scheduleCleanup = () => {
     const check = () => {
       if (tor.destroyed) return;
-      // Don't destroy if the torrent is still being downloaded (actively streaming)
       if (tor.downloadSpeed > 0 || tor.uploadSpeed > 0) { setTimeout(check, 30000); return; }
       if (Date.now() - (tor._lastUsed || 0) > 600000) {
         try { tor.destroy(); } catch {}
-        torrentCache.delete(key);
+        torrentCache.delete(cacheKey);
       } else {
         setTimeout(check, 30000);
       }
@@ -243,7 +243,7 @@ function getOrAddTorrent(magnet) {
   };
 
   tor.once('done', scheduleCleanup);
-  tor.once('error', () => { if (!tor.destroyed) { try { tor.destroy(); } catch {} } torrentCache.delete(key); });
+  tor.once('error', () => { if (!tor.destroyed) { try { tor.destroy(); } catch {} } torrentCache.delete(cacheKey); });
   tor.on('metadata', () => { tor._ready = true; });
   return tor;
 }
