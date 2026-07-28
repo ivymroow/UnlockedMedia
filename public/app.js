@@ -288,6 +288,18 @@ async function play(hash,fi,title,quality,seeds){
     video.muted=false;video.volume=1;
     video.src=`${base}/api/stream/${hash}?fileIndex=${fi}`;
     video.onerror=()=>perr('Stream failed.');
+    // Poll check endpoint for status updates
+    const pollStatus=setInterval(async()=>{
+      try{
+        const r=await fetch(`${base}/api/stream/check/${hash}`);
+        const st=await r.json();
+        const ps=qs('#ps');
+        if(ps&&st.name&&st.name!=='Unknown')ps.textContent=`Found: ${st.name}`;
+        if(ps&&st.peers>0)ps.textContent=`${st.peers} peers connected`;
+        if(ps&&st.progress>0)ps.textContent=`${Math.round(st.progress*100)}% downloaded`;
+        if(st.ready&&st.files?.length){clearInterval(pollStatus);if(ps)ps.textContent='Starting stream...';}
+      }catch{}
+    },2000);
     setTimeout(()=>{
       const pl=qs('#pl');
       if(pl&&pl.style.display!=='none'){
