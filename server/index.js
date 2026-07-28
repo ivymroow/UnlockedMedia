@@ -55,48 +55,22 @@ app.get('/api/popular', async (req, res) => {
 
 app.get('/api/movie/:id', async (req, res) => {
   const { id } = req.params;
+  const { title: titleHint, year: yearHint } = req.query;
   try {
-    const data = await imdb.details(id);
+    const data = await imdb.details(id, titleHint, yearHint);
     res.json(data);
   } catch (e) {
-    res.status(502).json({ error: 'IMDB error: ' + e.message });
+    // Return basic data even on error
+    res.json({ id, title: titleHint || id, year: yearHint || null, poster: '', overview: '', genres: [], runtime: null, cast: [], rating: null, type: id.startsWith('tt') ? 'movie' : 'tv' });
   }
 });
 
 app.get('/api/movie/:id/sources', async (req, res) => {
-  const { id } = req.params;
-  let { title, year, type = 'movie' } = req.query;
-
-  if (!title || !year) {
-    try {
-      const d = await imdb.details(id);
-      if (!title) title = d.title;
-      if (!year) year = d.year;
-    } catch {}
-  }
-
   try {
-    const [ourSources, tioSources] = await Promise.all([
-      torrent.findSources(id, title, parseInt(year) || 0, type, id),
-      torrentio.searchMovie(id),
-    ]);
-
-    // Merge: Torrentio first, then ours, dedup by hash
-    const seen = new Set();
-    const sources = [...tioSources, ...ourSources].filter(s => { const k = s.hash; if (seen.has(k)) return false; seen.add(k); return true; });
-
-    // Pre-buffer the best source in background
-    if (sources.length) {
-      const best = sources.sort((a, b) => (b.seeds || 0) - (a.seeds || 0))[0];
-      if (best?.hash) {
-        const magnet = torrent.makeMagnet(best.hash, title || 'stream');
-        try { torrent.getOrAddTorrent(magnet); } catch {}
-      }
-    }
-
+    const sources = await torrentio.searchMovie(req.params.id);
     res.json(sources);
   } catch (e) {
-    res.status(502).json({ error: 'Source search error: ' + e.message });
+    res.status(502).json({ error: e.message });
   }
 });
 
@@ -114,24 +88,16 @@ app.get('/api/show/:id/episodes', async (req, res) => {
 
 app.get('/api/show/:id/sources', async (req, res) => {
   const { id } = req.params;
-  const { title, year, season, episode } = req.query;
-
-  const query = season && episode
-    ? `${title} S${String(season).padStart(2, '0')}E${String(episode).padStart(2, '0')}`
-    : title;
-
+  const { season, episode } = req.query;
   try {
-    const [ourSources, tioSources] = await Promise.all([
-      torrent.findSources(id, query, parseInt(year) || 0, 'tv', id),
-      season && episode ? torrentio.searchEpisode(id, parseInt(season), parseInt(episode)) : Promise.resolve([]),
-    ]);
-
-    const seen = new Set();
-    const sources = [...tioSources, ...ourSources].filter(s => { const k = s.hash; if (seen.has(k)) return false; seen.add(k); return true; });
-
-    res.json(sources);
+    if (season && episode) {
+      const sources = await torrentio.searchEpisode(id, parseInt(season), parseInt(episode));
+      res.json(sources);
+    } else {
+      res.json([]);
+    }
   } catch (e) {
-    res.status(502).json({ error: 'Source search error: ' + e.message });
+    res.status(502).json({ error: e.message });
   }
 });
 
