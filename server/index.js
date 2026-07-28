@@ -216,35 +216,14 @@ app.get('/api/stream/:infoHash', async (req, res) => {
       ]);
     }
 
-    // Read full file with generous timeout
-    const readStream = (stream) => new Promise((resolve, reject) => {
-      const chunks = [];
-      let bytes = 0;
-      let timer = setTimeout(() => reject(new Error(`Read timeout (10min, ${bytes} bytes)`)), 600000);
-      stream.on('data', c => { chunks.push(c); bytes += c.length; });
-      stream.on('end', () => { clearTimeout(timer); resolve(Buffer.concat(chunks)); });
-      stream.on('error', e => { clearTimeout(timer); reject(e); });
-    });
-
-    let outputBuffer;
+    // Stream instantly with FFmpeg audio transcoding
     if (hasFfmpeg) {
-      const { transcodeBuffer } = require('./transcode');
-      const rawBuf = await readStream(file.createReadStream());
-      outputBuffer = await transcodeBuffer(rawBuf);
-    } else {
-      outputBuffer = await readStream(file.createReadStream());
+      const inputStream = file.createReadStream();
+      const transcoded = await transcodeStream(inputStream, req, res);
+      if (transcoded) return;
     }
-
-    if (!outputBuffer || outputBuffer.length === 0) {
-      return res.status(500).json({ error: 'Empty output buffer' });
-    }
-
-    res.writeHead(200, {
-      'Content-Type': 'video/mp4',
-      'Content-Length': outputBuffer.length,
-      'Accept-Ranges': 'bytes',
-    });
-    res.end(outputBuffer);
+    // Fallback: direct stream without transcoding
+    torrent.streamFile(file, req, res);
   } catch (e) {
     console.error('Stream error:', e?.message || e);
     if (!res.headersSent) {

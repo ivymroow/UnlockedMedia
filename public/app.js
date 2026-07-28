@@ -285,35 +285,11 @@ async function play(hash,fi,title,quality,seeds){
   if(state.mode==='backend'){
     const base=state.backendUrl||''
     const video=qs('#player')
-    // Download full episode first (with FFmpeg audio transcode), then play
-    const dlOverlay=document.createElement('div');
-    dlOverlay.id='dlWrap';
-    dlOverlay.style.cssText='position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:10;background:var(--bg);gap:12px;padding:40px';
-    dlOverlay.innerHTML='<div class="spinner"></div><p id="dlText">Starting download...</p><div style="width:60%;max-width:400px;height:6px;background:var(--surface3);border-radius:3px;overflow:hidden"><div id="dlBar" style="height:100%;width:0%;background:var(--primary);border-radius:3px;transition:width .3s"></div></div><p id="dlInfo" style="font-size:13px;color:var(--text3)"></p>';
-    qs('#pw')?.appendChild(dlOverlay);
-
-    let dlId=null;
-    try{
-      const r=await fetch(`${base}/api/download`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({hash,fileIndex:fi})});
-      const d=await r.json();
-      if(d.error){perr('Download error: '+d.error);return}
-      dlId=d.id;
-    }catch(e){perr('Failed: '+e.message);return}
-
-    const poll=async()=>{
-      try{
-        const r=await fetch(`${base}/api/download/${dlId}/status`);
-        if(r.status===404){perr('Download failed (server restarted). Try again.');return}
-        if(!r.ok){setTimeout(poll,2000);return}
-        const st=await r.json();
-        if(st.error||st.done){qs('#dlWrap')?.remove();video.muted=false;video.volume=1;video.src=st.done?`${base}/api/download/${dlId}/file`:`${base}/api/stream/${hash}?fileIndex=${fi}`;video.onerror=()=>perr('Playback failed.');initCustomPlayer(video,base);if(st.done&&video._enableSeek)video._enableSeek();return}
-        const pct=Math.round(st.progress*100);
-        const bar=qs('#dlBar');const txt=qs('#dlText');const info=qs('#dlInfo');
-        if(bar)bar.style.width=pct+'%';if(txt)txt.textContent=`Downloading ${pct}%`;if(info)info.textContent=`${st.peers} peers · ${(st.speed/1e6).toFixed(1)} MB/s`;
-        setTimeout(poll,1000);
-      }catch{setTimeout(poll,2000)}
-    };
-    setTimeout(poll,500);
+    // Instant streaming — plays immediately with FFmpeg audio, no waiting
+    video.muted=false;video.volume=1;
+    video.src=`${base}/api/stream/${hash}?fileIndex=${fi}`;
+    video.onerror=()=>perr('Stream failed.');
+    initCustomPlayer(video,base);
     // No streaming fallback — wait for full download. User can go back if stuck.
   } else {
     const ps=qs('#ps');if(ps)ps.textContent='No backend server available.';
