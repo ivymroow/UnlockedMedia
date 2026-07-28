@@ -285,10 +285,12 @@ async function play(hash,fi,title,quality,seeds){
   if(state.mode==='backend'){
     const base=state.backendUrl||''
     const video=qs('#player')
-    video.style.display='none'
-    // Show centered download progress
-    const pw=qs('#pw')
-    if(pw)pw.innerHTML=`<div id="dlWrap" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:12px;padding:40px"><div class="spinner"></div><p id="dlText">Starting download...</p><div style="width:60%;max-width:300px;height:4px;background:var(--surface3);border-radius:2px;overflow:hidden"><div id="dlBar" style="height:100%;width:0%;background:var(--primary);border-radius:2px;transition:width .3s"></div></div><p id="dlInfo" style="font-size:12px;color:var(--text3)"></p></div>`
+    // Show centered download progress overlay (don't remove video)
+    const dlOverlay=document.createElement('div');
+    dlOverlay.id='dlWrap';
+    dlOverlay.style.cssText='position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:10;background:var(--bg);gap:12px;padding:40px';
+    dlOverlay.innerHTML='<div class="spinner"></div><p id="dlText">Starting download...</p><div style="width:60%;max-width:300px;height:4px;background:var(--surface3);border-radius:2px;overflow:hidden"><div id="dlBar" style="height:100%;width:0%;background:var(--primary);border-radius:2px;transition:width .3s"></div></div><p id="dlInfo" style="font-size:12px;color:var(--text3)"></p>';
+    qs('#pw')?.appendChild(dlOverlay);
     // Start download
     let dlId=null,failed=false,tid=null;
     try{
@@ -312,7 +314,8 @@ async function play(hash,fi,title,quality,seeds){
         if(txt)txt.textContent=st.done?'Processing...':`Downloading ${Math.round(st.progress*100)}%`
         if(info)info.textContent=st.done?'':`${st.peers} peers · ${(st.speed/1e6).toFixed(1)} MB/s`
         if(st.done){
-          video.muted=false;video.volume=1;video.style.display='block'
+          const ov=qs('#dlWrap');if(ov)ov.remove()
+          video.muted=false;video.volume=1
           video.src=`${base}/api/download/${dlId}/file`
           video.onerror=()=>perr('Playback failed.')
           initCustomPlayer(video,base)
@@ -325,8 +328,9 @@ async function play(hash,fi,title,quality,seeds){
     tid=setTimeout(poll,500)
     // Fallback to stream after 12s
     setTimeout(()=>{
-      if(!qs('#dlWrap')||qs('#player').style.display==='block')return
-      video.style.display='block';video.muted=false;video.volume=1
+      if(!qs('#dlWrap'))return
+      qs('#dlWrap')?.remove()
+      video.muted=false;video.volume=1
       video.src=`${base}/api/stream/${hash}?fileIndex=${fi}`
       video.onerror=()=>perr('Stream failed.')
       initCustomPlayer(video,base)
