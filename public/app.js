@@ -292,7 +292,7 @@ async function play(hash,fi,title,quality,seeds){
     const video=qs('#player')
     video.muted=false;video.volume=1;
     video.src=`${base}/api/stream/${hash}?fileIndex=${fi}`;
-    video.onerror=()=>perr('Stream failed. Try a different source.');
+    video.onerror=async function(){try{const r=await fetch(`${base}/api/stream/${hash}?fileIndex=${fi}`);const e=await r.json().catch(()=>({}));perr(`Stream failed: ${e.error||'Unknown error'}${e.peers!==undefined?` (${e.peers} peers)`:''}. Try a different source with more seeds.`);}catch{perr('Stream failed. Server unreachable.');}}
     initCustomPlayer(video,base);
   } else browserTorrent(hash,title)
 }
