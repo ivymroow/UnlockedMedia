@@ -285,11 +285,29 @@ async function play(hash,fi,title,quality,seeds){
   if(state.mode==='backend'){
     const base=state.backendUrl||''
     const video=qs('#player')
-    // Instant streaming — plays immediately with FFmpeg audio, no waiting
+    // Stream instantly for playback, download in background for seeking
     video.muted=false;video.volume=1;
     video.src=`${base}/api/stream/${hash}?fileIndex=${fi}`;
     video.onerror=()=>perr('Stream failed.');
     initCustomPlayer(video,base);
+
+    // Background download — when done, swap to full file for seeking
+    (async()=>{
+      try{
+        const r=await fetch(`${base}/api/download`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({hash,fileIndex:fi})});
+        const d=await r.json();
+        if(d.error)return;
+        const dlId=d.id;
+        const poll=async()=>{
+          try{
+            const s=await(await fetch(`${base}/api/download/${dlId}/status`)).json();
+            if(s.done){const t=video.currentTime;const p=!video.paused;video.src=`${base}/api/download/${dlId}/file`;video.currentTime=t;if(p)video.play().catch(()=>{});if(video._enableSeek)video._enableSeek();return;}
+            setTimeout(poll,2000);
+          }catch{setTimeout(poll,3000)}
+        };
+        setTimeout(poll,3000);
+      }catch{}
+    })();
     // No streaming fallback — wait for full download. User can go back if stuck.
   } else {
     const ps=qs('#ps');if(ps)ps.textContent='No backend server available.';
