@@ -193,10 +193,13 @@ async function findSources(tmdbId, title, year, mediaType = 'movie', imdbId = ''
 const torrentCache = new Map();
 
 function getOrAddTorrent(magnet) {
-  const key = magnet.toLowerCase();
-  const existing = torrentCache.get(key);
+  // Check if we already have this infoHash in the client (WebTorrent internal check)
+  const hashMatch = magnet.match(/urn:btih:([a-fA-F0-9]+)/);
+  const infoHash = hashMatch ? hashMatch[1].toLowerCase() : '';
+  const existing = client.torrents.find(t => t.infoHash?.toLowerCase() === infoHash);
   if (existing) {
     existing._lastUsed = Date.now();
+    torrentCache.set(magnet.toLowerCase(), existing);
     return existing;
   }
 
