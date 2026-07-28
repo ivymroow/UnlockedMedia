@@ -252,49 +252,19 @@ async function play(hash,fi,title,quality,seeds){
   if(state.mode==='backend'){
     const base=state.backendUrl||''
     const video=qs('#player')
-    const dlDiv=qs('#dlProgress')
-
-    // Start streaming immediately
-    dlDiv.style.display = '';
     video.muted = false;
     video.volume = 1;
     video.src = `${base}/api/stream/${hash}?fileIndex=${fi}`;
-    video.onerror = () => perr('Stream failed to load. Try a different source.');
-    initCustomPlayer(video, base);
-
-    // Download in background — when done, swap to full file for proper seeking
-    (async () => {
+    video.onerror = async function() {
       try {
-        const r = await fetch(`${base}/api/download`, {
-          method:'POST', headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({hash,fileIndex:fi})
-        });
-        const d = await r.json();
-        if (d.error) { qs('#dlStatus').textContent = 'Seek not available'; setTimeout(() => { const e = qs('#dlProgress'); if (e) e.style.display = 'none'; }, 3000); return; }
-        const dlId = d.id;
-        // Poll until done
-        const poll = async () => {
-          try {
-            const s = await fetch(`${base}/api/download/${dlId}/status`).then(r => r.json());
-            if (s.done) {
-              // Swap to downloaded file — seek now works
-              const oldTime = video.currentTime;
-              const wasPlaying = !video.paused;
-              video.src = `${base}/api/download/${dlId}/file`;
-              video.currentTime = oldTime;
-              if (wasPlaying) video.play().catch(() => {});
-              if (video._enableSeek) video._enableSeek();
-              qs('#dlProgress').style.display = 'none';
-              return;
-            }
-            if (s.error) { qs('#dlStatus').textContent = 'Seek not available'; setTimeout(() => { const e = qs('#dlProgress'); if (e) e.style.display = 'none'; }, 3000); return; }
-            if (s.peers > 0) qs('#dlStatus').textContent = `Buffering for seeking... ${Math.round(s.progress * 100)}%`;
-            setTimeout(poll, 2000);
-          } catch { setTimeout(poll, 3000); }
-        };
-        poll();
-      } catch {}
-    })();
+        const r = await fetch(`${base}/api/stream/${hash}?fileIndex=${fi}`);
+        const e = await r.json().catch(()=>({}));
+        perr(`Stream failed: ${e.error || 'Unknown'}`);
+      } catch {
+        perr('Stream failed. Server unreachable.');
+      }
+    };
+    initCustomPlayer(video, base);
   } else browserTorrent(hash,title)
 }
 
