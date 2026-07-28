@@ -6,9 +6,26 @@ let wt=null
 const WT=['wss://tracker.webtorrent.dev','wss://tracker.openwebtorrent.com']
 
 async function detect(){
-  if(backendUrl){try{const r=await fetch(`${backendUrl}/api/status`,{signal:AbortSignal.timeout(5000)});if(r.ok){state.mode='backend';state.backendUrl=backendUrl;return}}catch{}}
-  try{const r=await fetch('/api/status',{signal:AbortSignal.timeout(3000)});if(r.ok){const j=await r.json();state.mode=j.mode||'backend';state.backendUrl='';return}}catch{}
-  state.mode='standalone';state.backendUrl=''
+  // First check if user has a backend URL configured (Render)
+  if(backendUrl){
+    try{
+      const r=await fetch(`${backendUrl}/api/status`,{signal:AbortSignal.timeout(10000)});
+      if(r.ok){state.mode='backend';state.backendUrl=backendUrl;return}
+    }catch{}
+    // Backend URL configured but unreachable — show setup
+    state.mode='standalone';state.backendUrl='';
+    qs('#setup').style.display='flex';
+    qs('#backendUrlInput').value=backendUrl;
+    return;
+  }
+  // Check if served from same origin (Render or local dev)
+  try{
+    const r=await fetch('/api/status',{signal:AbortSignal.timeout(10000)});
+    if(r.ok){state.mode='backend';state.backendUrl='';return}
+  }catch{}
+  // No backend — show setup
+  state.mode='standalone';state.backendUrl='';
+  qs('#setup').style.display='flex';
 }
 
 async function api(method,path,body){
@@ -254,7 +271,15 @@ async function play(hash,fi,title,quality,seeds){
     const video=qs('#player')
     video.muted = false;
     video.volume = 1;
-    video.onerror = () => perr('Stream failed. Try a different source.');
+    // Try server streaming — fall back to browser WebTorrent after 12s
+    let fallbackTimer = setTimeout(() => {
+      if (video.readyState < 2) {
+        video.src = '';
+        browserTorrent(hash, title);
+      }
+    }, 12000);
+    video.oncanplay = () => { clearTimeout(fallbackTimer); };
+    video.onerror = () => { clearTimeout(fallbackTimer); perr('Server stream failed. Try a different source.'); };
     video.src = `${base}/api/stream/${hash}?fileIndex=${fi}`;
     initCustomPlayer(video, base);
   } else browserTorrent(hash,title)
@@ -394,7 +419,10 @@ function fmtTime(s) {
   return m + ':' + (sec < 10 ? '0' : '') + sec;
 }
 
-function perr(msg){const e=qs('#pl');if(e)e.innerHTML=`<p style="color:#f87171">${esc(msg)}</p><button class="play-btn" style="margin-top:12px" onclick="cp()">Go Back</button>`}
+function perr(msg){
+  const pw=qs('#pw');
+  if(pw)pw.innerHTML=`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:16px;padding:40px;text-align:center"><p style="color:#f87171;font-size:16px">${esc(msg)}</p><button class="play-btn" onclick="cp()">Go Back</button></div>`;
+}
 function cp(){if(state.player){state.player=null}if(wt){try{wt.destroy()}catch{}wt=null};if(state.prevState){state.view=state.prevState.view;state.data=state.prevState.data;state.prevState=null;qs('#app').innerHTML='<main id="main"><div class="loading-screen" id="loadingScreen"><div class="spinner"></div><p>Loading...</p></div></main>';render()}else location.reload()}
 
 function G(id,items){
