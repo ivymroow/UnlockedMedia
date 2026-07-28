@@ -1,5 +1,6 @@
 let state={view:'home',query:'',player:null,mode:'standalone',prevState:null,user:null}
 const cache=new Map()
+const itemCache=new Map()
 let backendUrl=localStorage.getItem('um_backend')||''
 let token=localStorage.getItem('um_token')||''
 let wt=null
@@ -56,8 +57,7 @@ function esc(s){if(!s)return'';const d=document.createElement('div');d.textConte
 
 function navigate(v,d){
   state.prevState={view:state.view,data:state.data};state.view=v;state.data=d
-  // Persist page in URL (use replaceState to not spam history)
-  const hash=v==='search'?'#q='+encodeURIComponent(state.query||''):v==='detail'?'#id='+(d?.id||'')+(d?.type==='tv'?'&type=tv':''):'#'
+  const hash=v==='search'?'#q='+encodeURIComponent(state.query||'') : v==='detail'?'#id='+(d?.id||'')+(d?.type==='tv'?'&type=tv':'')+(d?.title?'&t='+encodeURIComponent(d.title):'')+(d?.year?'&y='+d.year:'') : '#'
   history.replaceState(null,'',hash)
   render()
 }
@@ -140,9 +140,11 @@ async function LS(){try{const r=await api('GET',`/api/search?q=${encodeURICompon
 function D(){return`<div class="detail"><button class="detail-back" onclick="navigate('home')"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg> Back</button><div class="loading-screen" id="dL"><div class="spinner"></div><p>Loading...</p></div></div>`}
 
 async function LD(){
-  const{id,type}=state.data
+  const{id,type,title:t, year:y}=state.data
+  const tHint = t || '';
+  const yHint = y || '';
   try{
-    const d=await api('GET',`/api/movie/${id}?type=${type}`)
+    const d=await api('GET',`/api/movie/${id}?type=${type}&title=${encodeURIComponent(tHint)}&year=${yHint}`)
     state.data._title=d.title||'';state.data._year=d.year||'';state.data._poster=d.poster||''
     if(d.type==='tv'||type==='tv'){const eps=await api('GET',`/api/show/${id}/episodes?title=${encodeURIComponent(d.title||'')}`);RD(d,null,eps)}
     else{const s=await api('GET',`/api/movie/${id}/sources?title=${encodeURIComponent(d.title||'')}&year=${d.year||''}&type=${type}`);RD(d,s,null)}
@@ -483,7 +485,7 @@ function G(id,items){
   el.innerHTML=items.map(i=>{
     const p=img(i.poster);const t=title(i);const y=year(i);const r=rating(i);const tp=i.type==='tv'?'TV':'Movie'
     const progress=i.progress?`<div class="progress-bar"><div class="progress-fill" style="width:${Math.min(i.progress*100,100)}%"></div></div>`:''
-    return `<div class="card" onclick="navigate('detail',{id:'${i.id}',type:'${tp==='TV'?'tv':'movie'}'})"><div class="card-poster">${p?`<img src="${p}" alt="${esc(t)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentElement.innerHTML='<div class=placeholder>🎬</div>'">`:'<div class="placeholder">🎬</div>'}<span class="card-type">${tp}</span></div><div class="card-body"><h3 title="${esc(t)}">${esc(t)}</h3><div class="card-meta">${y?`<span>${y}</span>`:''}${r?`<span class="card-rating"><svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>${r}</span>`:''}</div>${progress}</div></div>`
+    return `<div class="card" onclick="navigate('detail',{id:'${i.id}',type:'${tp==='TV'?'tv':'movie'}',title:'${esc(title(i))}',year:'${year(i)}'})"><div class="card-poster">${p?`<img src="${p}" alt="${esc(t)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentElement.innerHTML='<div class=placeholder>🎬</div>'">`:'<div class="placeholder">🎬</div>'}<span class="card-type">${tp}</span></div><div class="card-body"><h3 title="${esc(t)}">${esc(t)}</h3><div class="card-meta">${y?`<span>${y}</span>`:''}${r?`<span class="card-rating"><svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>${r}</span>`:''}</div>${progress}</div></div>`
   }).join('')
 }
 
@@ -512,7 +514,7 @@ function restoreFromHash(){
   if(!hash||hash==='/'||hash===''){state.view='home';return}
   const params=new URLSearchParams(hash)
   if(params.has('q')){state.query=params.get('q');state.view='search'}
-  else if(params.has('id')){state.view='detail';state.data={id:params.get('id'),type:params.get('type')||'movie'}}
+  else if(params.has('id')){state.view='detail';state.data={id:params.get('id'),type:params.get('type')||'movie',title:params.get('t')||'',year:params.get('y')||''}}
   else state.view='home'
 }
 
