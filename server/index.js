@@ -180,8 +180,8 @@ app.get('/api/stream/:infoHash', async (req, res) => {
     const magnet = torrent.makeMagnet(infoHash, 'stream');
     const tor = torrent.getOrAddTorrent(magnet);
 
-    // Wait for metadata (short — server DHT is slow on cloud)
-    await torrent.waitForMetadata(tor, 10000);
+    // Wait for metadata (DHT needs time to bootstrap)
+    await torrent.waitForMetadata(tor, 25000);
 
     // Give files a moment to populate after metadata event
     let file = tor.files?.[fileIndex] || torrent.getFirstVideoFile(tor);
