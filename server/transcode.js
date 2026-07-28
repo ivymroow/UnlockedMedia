@@ -102,11 +102,14 @@ async function transcodeBuffer(input) {
       'pipe:1',
     ], { stdio: ['pipe', 'pipe', 'pipe'] });
     const chunks = [];
+    let done = false;
     ff.stdout.on('data', c => chunks.push(c));
-    ff.stdout.on('end', () => resolve(Buffer.concat(chunks)));
     ff.stderr.on('data', () => {});
-    ff.on('error', () => reject(new Error('FFmpeg error')));
-    ff.on('close', (code) => { if (code !== 0) reject(new Error('FFmpeg exit: '+code)); });
+    ff.on('close', (code) => {
+      if (code === 0) resolve(Buffer.concat(chunks));
+      else reject(new Error('FFmpeg exit: '+code));
+    });
+    ff.on('error', (e) => reject(new Error(e.message)));
     ff.stdin.end(input);
   });
 }
