@@ -298,15 +298,19 @@ async function play(hash,fi,title,quality,seeds){
       dlId=d.id;
     }catch(e){perr('Failed: '+e.message);return}
     // Poll until done or fallback to stream
+    let pollCount=0;
     const poll=async()=>{
+      pollCount++;
+      if(pollCount>20){return} // Stop after ~20s
       try{
         const r=await fetch(`${base}/api/download/${dlId}/status`);
+        if(!r.ok){tid=setTimeout(poll,2000);return}
         const st=await r.json();
         if(st.error){perr(st.error);return}
-        const pct=Math.round(st.progress*100)
-        qs('#dlBar')&&(qs('#dlBar').style.width=pct+'%')
-        qs('#dlText')&&(qs('#dlText').textContent=st.done?'Processing...':`Downloading ${pct}%`)
-        qs('#dlInfo')&&(qs('#dlInfo').textContent=st.done?'':`${st.peers} peers · ${(st.speed/1e6).toFixed(1)} MB/s`)
+        const bar=qs('#dlBar');const txt=qs('#dlText');const info=qs('#dlInfo');
+        if(bar)bar.style.width=Math.round(st.progress*100)+'%'
+        if(txt)txt.textContent=st.done?'Processing...':`Downloading ${Math.round(st.progress*100)}%`
+        if(info)info.textContent=st.done?'':`${st.peers} peers · ${(st.speed/1e6).toFixed(1)} MB/s`
         if(st.done){
           video.muted=false;video.volume=1;video.style.display='block'
           video.src=`${base}/api/download/${dlId}/file`
@@ -315,15 +319,13 @@ async function play(hash,fi,title,quality,seeds){
           if(video._enableSeek)video._enableSeek()
           return
         }
-        if(st.peers>0&&failed){failed=false}
         tid=setTimeout(poll,1000)
       }catch{tid=setTimeout(poll,2000)}
     }
-    // Fallback to stream if no peers after 12s
     tid=setTimeout(poll,500)
+    // Fallback to stream after 12s
     setTimeout(()=>{
       if(!qs('#dlWrap')||qs('#player').style.display==='block')return
-      if(dlId)fetch(`${base}/api/download/${dlId}/status`).catch(()=>{})
       video.style.display='block';video.muted=false;video.volume=1
       video.src=`${base}/api/stream/${hash}?fileIndex=${fi}`
       video.onerror=()=>perr('Stream failed.')
