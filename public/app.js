@@ -7,26 +7,21 @@ let wt=null
 const WT=['wss://tracker.webtorrent.dev','wss://tracker.openwebtorrent.com']
 
 async function detect(){
-  // First check if user has a backend URL configured (Render)
+  for(let i=0;i<3;i++){
+    try{
+      const r=await fetch('/api/status',{signal:AbortSignal.timeout(5000)});
+      if(r.ok){state.mode='backend';state.backendUrl='';return}
+    }catch{}
+    if(i<2)await new Promise(r=>setTimeout(r,2000));
+  }
+  // Fallback: try configured backend URL
   if(backendUrl){
     try{
-      const r=await fetch(`${backendUrl}/api/status`,{signal:AbortSignal.timeout(10000)});
+      const r=await fetch(`${backendUrl}/api/status`,{signal:AbortSignal.timeout(5000)});
       if(r.ok){state.mode='backend';state.backendUrl=backendUrl;return}
     }catch{}
-    // Backend URL configured but unreachable — show setup
-    state.mode='standalone';state.backendUrl='';
-    qs('#setup').style.display='flex';
-    qs('#backendUrlInput').value=backendUrl;
-    return;
   }
-  // Check if served from same origin (Render or local dev)
-  try{
-    const r=await fetch('/api/status',{signal:AbortSignal.timeout(10000)});
-    if(r.ok){state.mode='backend';state.backendUrl='';return}
-  }catch{}
-  // No backend — show setup
   state.mode='standalone';state.backendUrl='';
-  qs('#setup').style.display='flex';
 }
 
 async function api(method,path,body){
