@@ -332,10 +332,6 @@ async function play(hash,fi,title,quality,seeds){
   } else {
     const ps=qs('#ps');if(ps)ps.textContent='No backend server available.';
   }
-    initCustomPlayer(video,base);
-  } else {
-    const ps=qs('#ps');if(ps)ps.textContent='No backend server available.';
-  }
 }
 
 async function browserTorrent(hash,title){
