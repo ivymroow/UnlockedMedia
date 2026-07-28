@@ -216,15 +216,30 @@ app.get('/api/stream/:infoHash', async (req, res) => {
       ]);
     }
 
-    // Transcode audio through FFmpeg (fixes E-AC3/DTS/TrueHD → AAC)
+    // Read the entire file, transcode audio, then serve as complete buffer
+    let outputBuffer;
     if (hasFfmpeg) {
-      const inputStream = file.createReadStream();
-      const transcoded = await transcodeStream(inputStream, req, res);
-      if (transcoded) return; // FFmpeg handled it
+      const { transcodeBuffer } = require('./transcode');
+      const chunks = [];
+      for await (const chunk of file.createReadStream()) chunks.push(chunk);
+      const rawBuf = Buffer.concat(chunks);
+      outputBuffer = await transcodeBuffer(rawBuf);
+    } else {
+      const chunks = [];
+      for await (const chunk of file.createReadStream()) chunks.push(chunk);
+      outputBuffer = Buffer.concat(chunks);
     }
 
-    // Fallback: stream directly
-    torrent.streamFile(file, req, res);
+    if (!outputBuffer || outputBuffer.length === 0) {
+      return res.status(500).json({ error: 'Empty output buffer' });
+    }
+
+    res.writeHead(200, {
+      'Content-Type': 'video/mp4',
+      'Content-Length': outputBuffer.length,
+      'Accept-Ranges': 'bytes',
+    });
+    res.end(outputBuffer);
   } catch (e) {
     console.error('Stream error:', e?.message || e);
     if (!res.headersSent) {
