@@ -193,20 +193,34 @@ async function findSources(tmdbId, title, year, mediaType = 'movie', imdbId = ''
 const torrentCache = new Map();
 
 function getOrAddTorrent(magnet) {
-  // Check if we already have this infoHash in the client (WebTorrent internal check)
   const hashMatch = magnet.match(/urn:btih:([a-fA-F0-9]+)/);
   const infoHash = hashMatch ? hashMatch[1].toLowerCase() : '';
-  const existing = client.torrents.find(t => t.infoHash?.toLowerCase() === infoHash);
+
+  // Check exposed torrent list
+  let existing = client.torrents.find(t => t.infoHash?.toLowerCase() === infoHash);
   if (existing) {
     existing._lastUsed = Date.now();
     torrentCache.set(magnet.toLowerCase(), existing);
     return existing;
   }
 
+  // Also check cache by magnet string (handles case where torrent was removed from client array)
+  const cached = torrentCache.get(magnet.toLowerCase());
+  if (cached) {
+    cached._lastUsed = Date.now();
+    return cached;
+  }
+
   let tor;
   try {
     tor = client.add(magnet, { strategy: 'sequential' });
   } catch (e) {
+    // If duplicate error, try to find the existing torrent via the magnet cache
+    const cachedTor = torrentCache.get(magnet.toLowerCase());
+    if (cachedTor) return cachedTor;
+    // Try finding by infoHash in client's internal torrents
+    const internalTor = client.torrents.find(t => t.infoHash?.toLowerCase() === infoHash);
+    if (internalTor) return internalTor;
     throw new Error(`Cannot add torrent: ${e.message}`);
   }
   tor._lastUsed = Date.now();
