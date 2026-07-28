@@ -303,6 +303,7 @@ async function play(hash,fi,title,quality,seeds){
     const poll=async()=>{
       try{
         const r=await fetch(`${base}/api/download/${dlId}/status`);
+        if(r.status===404){perr('Download failed (server restarted). Try again.');return}
         if(!r.ok){setTimeout(poll,2000);return}
         const st=await r.json();
         if(st.error||st.done){qs('#dlWrap')?.remove();video.muted=false;video.volume=1;video.src=st.done?`${base}/api/download/${dlId}/file`:`${base}/api/stream/${hash}?fileIndex=${fi}`;video.onerror=()=>perr('Playback failed.');initCustomPlayer(video,base);if(st.done&&video._enableSeek)video._enableSeek();return}
