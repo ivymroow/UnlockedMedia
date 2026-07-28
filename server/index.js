@@ -357,5 +357,12 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`  🌐 Public: http://localhost:${PORT}\n`);
 });
 
-process.on('SIGTERM', () => { console.log('Shutting down...'); server.close(() => process.exit(0)); });
-process.on('SIGINT', () => { console.log('Shutting down...'); server.close(() => process.exit(0)); });
+function shutdown() {
+  console.log('Shutting down...');
+  // Force-kill WebTorrent to release all ports
+  try { torrent.client.destroy(); } catch {}
+  server.close(() => process.exit(0));
+  setTimeout(() => process.exit(0), 3000);
+}
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
