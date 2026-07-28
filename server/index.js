@@ -216,18 +216,22 @@ app.get('/api/stream/:infoHash', async (req, res) => {
       ]);
     }
 
-    // Read the entire file, transcode audio, then serve as complete buffer
+    // Read full file with timeout
+    const readStream = (stream) => new Promise((resolve, reject) => {
+      const chunks = [];
+      const timeout = setTimeout(() => reject(new Error('Read timeout (60s)')), 60000);
+      stream.on('data', c => { chunks.push(c); clearTimeout(timeout); setTimeout(() => {}, 60000); });
+      stream.on('end', () => { clearTimeout(timeout); resolve(Buffer.concat(chunks)); });
+      stream.on('error', e => { clearTimeout(timeout); reject(e); });
+    });
+
     let outputBuffer;
     if (hasFfmpeg) {
       const { transcodeBuffer } = require('./transcode');
-      const chunks = [];
-      for await (const chunk of file.createReadStream()) chunks.push(chunk);
-      const rawBuf = Buffer.concat(chunks);
+      const rawBuf = await readStream(file.createReadStream());
       outputBuffer = await transcodeBuffer(rawBuf);
     } else {
-      const chunks = [];
-      for await (const chunk of file.createReadStream()) chunks.push(chunk);
-      outputBuffer = Buffer.concat(chunks);
+      outputBuffer = await readStream(file.createReadStream());
     }
 
     if (!outputBuffer || outputBuffer.length === 0) {
