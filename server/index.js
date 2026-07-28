@@ -4,8 +4,10 @@ const path = require('path');
 
 // Prevent WebTorrent EPIPE from crashing the server
 process.on('uncaughtException', (err) => {
-  if (err.code === 'EPIPE' || err.message?.includes('EPIPE')) return;
-  console.error('Uncaught:', err);
+  if (err.code === 'EPIPE' || (err.message && (err.message.includes('EPIPE') || err.message.includes('write after end') || err.message.includes('destroy')))) return;
+});
+process.on('unhandledRejection', (err) => {
+  if (err?.code === 'EPIPE' || (err?.message && (err.message.includes('EPIPE') || err.message.includes('write after end')))) return;
 });
 
 const imdb = require('./imdb');
