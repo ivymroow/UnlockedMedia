@@ -292,7 +292,16 @@ async function play(hash,fi,title,quality,seeds){
     const video=qs('#player')
     video.muted=false;video.volume=1;
     video.src=`${base}/api/stream/${hash}?fileIndex=${fi}`;
-    video.onerror=()=>perr('Stream failed. Try a different source.');
+    // Show embed option alongside torrent stream
+    const pw=qs('#pw');
+    setTimeout(()=>{
+      if(pw&&!qs('#embedBtn')){
+        const e=document.createElement('div');e.id='embedBtn';
+        e.style.cssText='position:absolute;bottom:120px;left:50%;transform:translateX(-50%);z-index:10';
+        e.innerHTML=`<button class="play-btn" style="font-size:13px;padding:10px 20px;background:var(--surface);color:var(--text);border:1px solid var(--surface3)" onclick="window.open('https://vidsrc.to/embed/${state.data?.type||'movie'}/${state.data?.id}${state.data?.type==='tv'?'/'+selectedSeason+'/'+selectedEpisode:''}','_blank')">Stream not working? Try Embed (no peers needed)</button>`;
+        pw.appendChild(e);
+      }
+    },8000);
     initCustomPlayer(video,base);
   } else {
     perr('Streaming requires a backend server. Set your Render URL in Settings.');
