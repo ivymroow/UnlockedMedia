@@ -301,15 +301,29 @@ async function browserTorrent(hash,title){
   const ps=qs('#ps');if(!ps)return
   try{
     if(!wt)wt=new WebTorrent()
-    const magnet=mag(hash,title);ps.textContent='Adding torrent...'
-    const tor=wt.add(magnet);ps.textContent='Connecting to peers...'
-    tor.on('warning',e=>ps.textContent=e.message);tor.on('metadata',()=>ps.textContent=`Found ${tor.name}. Looking for peers...`)
-    tor.on('wire',()=>ps.textContent=`${tor.numPeers} peer(s). Downloading...`)
-    tor.on('download',()=>ps.textContent=`⬇ ${(tor.downloadSpeed/1e6).toFixed(1)} MB/s · ${(tor.progress*100).toFixed(0)}% · ${tor.numPeers} peers`)
-    const file=await new Promise((resolve,reject)=>{const check=()=>{const f=tor.files?.find(x=>/\.(mp4|mkv|webm|avi|mov)$/i.test(x.name));if(f)resolve(f)};tor.on('metadata',check);setTimeout(()=>{const f=tor.files?.find(x=>/\.(mp4|mkv|webm|avi|mov)$/i.test(x.name));if(f)resolve(f);else reject(new Error('No video file'))},30000)})
-    ps.textContent=`Streaming ${file.name}...`
-    file.renderTo('#player',{autoplay:true,controls:true},(err)=>{if(err)return perr('Render error: '+err.message);const video=qs('#player');if(video){qs('#pl').style.display='none'}})
+    // Avoid duplicate by reusing existing torrent
+    const existing=wt.torrents?.find(t=>t.infoHash?.toLowerCase()===hash.toLowerCase());
+    if(existing){await playTorrentFile(existing,ps);return;}
+    const tor=wt.add(mag(hash,title));ps.textContent='Connecting...'
+    tor.on('warning',e=>ps.textContent=e.message);
+    tor.on('wire',()=>ps.textContent=`${tor.numPeers} peer(s)`);
+    tor.on('download',()=>ps.textContent=`⬇ ${(tor.downloadSpeed/1e6).toFixed(1)} MB/s · ${(tor.progress*100).toFixed(0)}%`);
+    await playTorrentFile(tor,ps);
   }catch(e){perr(e.message)}
+}
+async function playTorrentFile(tor,ps){
+  if(tor.files?.length){ps.textContent='Starting...';return renderFile(tor,ps);}
+  await new Promise((resolve,reject)=>{
+    tor.on('metadata',()=>{if(tor.files?.length)resolve();});
+    setTimeout(()=>reject(new Error('No metadata')),30000);
+  });
+  renderFile(tor,ps);
+}
+function renderFile(tor,ps){
+  const file=tor.files?.find(x=>/\.(mp4|mkv|webm|avi|mov)$/i.test(x.name))||tor.files?.[0];
+  if(!file)return perr('No video file');
+  ps.textContent=`Playing ${file.name}...`;
+  file.renderTo('#player',{autoplay:true,controls:true},(err)=>{if(err)perr('Error: '+err.message);else{const v=qs('#player');if(v){v.style.display='block';v.removeAttribute('controls')}}});
 }
 
 function initCustomPlayer(video, baseUrl){
