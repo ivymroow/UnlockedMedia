@@ -105,21 +105,8 @@ async function getAllEpisodes(imdbId, titleHint) {
         season: parseInt(season),
         episodes: eps.sort((a, b) => a.number - b.number),
       }))
-      // Remove seasons where every episode airdate is > 30 days from now (unreleased)
-      .filter(s => s.episodes.some(e => !e.airdate || (new Date(e.airdate) - now) < 2592000000));
-
-    if (!result.length) {
-      // Fallback: if all seasons filtered out, just show last 2 seasons
-      const sorted = Object.entries(grouped)
-        .sort(([a], [b]) => parseInt(b) - parseInt(a))
-        .slice(0, 2);
-      const fallback = sorted.map(([season, eps]) => ({
-        season: parseInt(season),
-        episodes: eps.sort((a, b) => a.number - b.number),
-      }));
-      cache.set(key, fallback, 'tmdb');
-      return fallback;
-    }
+      // Remove seasons where every episode airdate is in the future (unreleased)
+      .filter(s => s.episodes.some(e => !e.airdate || new Date(e.airdate) <= now));
 
     cache.set(key, result, 'tmdb');
     return result;
