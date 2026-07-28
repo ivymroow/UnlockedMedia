@@ -155,16 +155,29 @@ async function loadEpisodeSources(id,season,episode){
   const title=state.data?._title||'';const year=state.data?._year||''
   const list=qs('#sl');if(!list)return
   list.innerHTML='<div class="loading-screen" style="padding:16px"><div class="spinner"></div><p>Searching...</p></div>'
-  try{
-    const q = `S${String(season).padStart(2,'0')}E${String(episode).padStart(2,'0')}`
-    const s=await api('GET',`/api/show/${id}/sources?title=${encodeURIComponent(title)}&year=${year}&type=tv&season=${season}&episode=${episode}&_=${Date.now()}`)
-    if(!s||!s.length){list.innerHTML=`<p style="color:var(--text3);font-size:14px;padding:8px 0">No sources for ${title} ${q}. Try a different episode or season.</p>`;return}
-    s.sort((a,b)=>(b.seeds||0)-(a.seeds||0))
-    list.innerHTML=s.map(src=>{
-      const dead = (src.seeds||0) === 0 && (src.peers||0) === 0
-      return `<div class="source-item${dead?' dead-source':''}"><div class="source-info"><span class="source-quality">${src.quality}</span><span class="source-size">${fmt(src.size)}</span><span class="source-seeds">⬆ ${src.seeds||0}</span><span class="source-peers">⬇ ${src.peers||0}</span><span style="color:var(--text3);font-size:11px">${src.provider||''}</span></div><button class="source-play" onclick="play('${src.hash}',${src.fileIndex||0},'${esc(title)} ${q}','${src.quality}',${src.seeds||0})">${dead?'⚠ Try':'▶ Play'}</button>${dead?'<span style="font-size:11px;color:var(--text3);margin-left:8px">0 seeds</span>':''}</div>`
-    }).join('')
-  }catch(e){list.innerHTML=`<p style="color:var(--text2);font-size:14px">${esc(e.message)}</p>`}
+  const q = `S${String(season).padStart(2,'0')}E${String(episode).padStart(2,'0')}`
+  let sources=null
+  // Try backend
+  try{sources=await api('GET',`/api/show/${id}/sources?title=${encodeURIComponent(title)}&year=${year}&type=tv&season=${season}&episode=${episode}&_=${Date.now()}`)}catch{}
+  // Fallback: Torrentio directly from browser
+  if(!sources||!sources.length){
+    try{
+      const r=await fetch(`https://torrentio.strem.fun/stream/series/${id}:${season}:${episode}.json`);
+      const d=await r.json();
+      if(d?.streams)sources=d.streams.map(x=>({
+        provider:'Torrentio',
+        quality:(x.title||'').includes('4K')?'4K':(x.title||'').includes('1080')?'1080p':'Unknown',
+        seeds:0,peers:0,hash:x.infoHash,fileIndex:x.fileIdx||0,
+        magnet:`magnet:?xt=urn:btih:${x.infoHash}`,
+      }));
+    }catch{}
+  }
+  if(!sources||!sources.length){list.innerHTML=`<p style="color:var(--text3);font-size:14px;padding:8px 0">No sources for ${title} ${q}.</p>`;return}
+  sources.sort((a,b)=>(b.seeds||0)-(a.seeds||0))
+  list.innerHTML=sources.map(src=>{
+    const dead = (src.seeds||0) === 0 && (src.peers||0) === 0
+    return `<div class="source-item${dead?' dead-source':''}"><div class="source-info"><span class="source-quality">${src.quality}</span><span class="source-size">${fmt(src.size)}</span><span class="source-seeds">⬆ ${src.seeds||0}</span><span class="source-peers">⬇ ${src.peers||0}</span><span style="color:var(--text3);font-size:11px">${src.provider||''}</span></div><button class="source-play" onclick="play('${src.hash}',${src.fileIndex||0},'${esc(title)} ${q}','${src.quality}',${src.seeds||0})">${dead?'⚠ Try':'▶ Play'}</button>${dead?'<span style="font-size:11px;color:var(--text3);margin-left:8px">0 seeds</span>':''}</div>`
+  }).join('')
 }
 
 function RD(d,sources,episodes){
