@@ -288,42 +288,52 @@ async function play(hash,fi,title,quality,seeds){
   if(state.mode==='backend'){
     const base=state.backendUrl||''
     const video=qs('#player')
-    const dlDiv=qs('#dlProgress')
+    const pw=qs('#pw')
 
-    // Show download progress
-    dlDiv.style.display='';
+    // Show download status centered
+    const statusDiv=document.createElement('div');
+    statusDiv.id='dlStatus';
+    statusDiv.style.cssText='position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:10;background:var(--bg);gap:12px;padding:40px';
+    statusDiv.innerHTML='<div class="spinner"></div><p id="dlText">Starting...</p><div style="width:60%;max-width:300px;height:4px;background:var(--surface3);border-radius:2px;overflow:hidden"><div id="dlBar" style="height:100%;width:0%;background:var(--primary);border-radius:2px;transition:width .3s"></div></div><p id="dlInfo" style="font-size:12px;color:var(--text3)"></p>';
+    pw.appendChild(statusDiv);
 
-    // Start download
-    let dlId=null;
+    // Start download with streaming fallback
+    let fallbackTimer=setTimeout(()=>{
+      statusDiv.remove();
+      video.muted=false;video.volume=1;
+      video.src=`${base}/api/stream/${hash}?fileIndex=${fi}`;
+      video.onerror=()=>perr('Stream failed.');
+      initCustomPlayer(video,base);
+    },15000);
+
     try{
       const r=await fetch(`${base}/api/download`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({hash,fileIndex:fi})});
       const d=await r.json();
-      if(d.error){perr('Download error: '+d.error);return}
-      dlId=d.id;
-    }catch(e){perr('Failed: '+e.message);return}
-
-    // Poll progress
-    const poll=async()=>{
-      try{
-        const r=await fetch(`${base}/api/download/${dlId}/status`);
-        const st=await r.json();
-        if(st.error){perr(st.error);return}
-        const pct=Math.round(st.progress*100);
-        qs('#dlBar').style.width=pct+'%';
-        qs('#dlStatus').textContent=st.done?'Processing...':`Downloading ${pct}%`;
-        qs('#dlInfo').textContent=st.done?'Preparing video...':`${st.peers} peers · ${(st.speed/1e6).toFixed(1)} MB/s`;
-        if(st.done){
-          dlDiv.style.display='none';
-          video.muted=false;video.volume=1;
-          video.src=`${base}/api/download/${dlId}/file`;
-          initCustomPlayer(video,base);
-          if(video._enableSeek)video._enableSeek();
-          return;
-        }
-        setTimeout(poll,1000);
-      }catch{setTimeout(poll,2000)}
-    };
-    poll();
+      if(d.error){clearTimeout(fallbackTimer);perr('Download error: '+d.error);return}
+      const dlId=d.id;
+      const poll=async()=>{
+        try{
+          const st=await(await fetch(`${base}/api/download/${dlId}/status`)).json();
+          if(st.error){clearTimeout(fallbackTimer);perr(st.error);return}
+          const pct=Math.round(st.progress*100);
+          qs('#dlBar').style.width=pct+'%';
+          qs('#dlText').textContent=st.done?'Processing...':`Downloading ${pct}%`;
+          qs('#dlInfo').textContent=st.done?'':`${st.peers} peers · ${(st.speed/1e6).toFixed(1)} MB/s`;
+          if(st.done){
+            clearTimeout(fallbackTimer);
+            statusDiv.remove();
+            video.muted=false;video.volume=1;
+            video.src=`${base}/api/download/${dlId}/file`;
+            initCustomPlayer(video,base);
+            if(video._enableSeek)video._enableSeek();
+            return;
+          }
+          if(st.peers>0)fallbackTimer=null; // Don't fallback if we have peers
+          setTimeout(poll,1000);
+        }catch{setTimeout(poll,2000)}
+      };
+      poll();
+    }catch(e){clearTimeout(fallbackTimer);perr('Failed: '+e.message)}
   } else browserTorrent(hash,title)
 }
 
