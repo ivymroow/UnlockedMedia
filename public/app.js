@@ -295,7 +295,7 @@ async function play(hash,fi,title,quality,seeds){
     video.muted=false;video.volume=1;
     video.src=`${base}/api/stream/${hash}?fileIndex=${fi}`;
     let failed=false;
-    video.onerror=()=>{failed=true;browserTorrent(hash,title);};
+    video.onerror=()=>{failed=true;if(!qs('#ps')){const s=document.createElement('div');s.id='ps';s.style.cssText='position:absolute;bottom:60px;left:16px;right:16px;z-index:10;color:#fff;font-size:13px;text-align:center';qs('#pw')?.appendChild(s);}browserTorrent(hash,title);};
     video.oncanplay=()=>{if(!failed)initCustomPlayer(video,base);};
     // Fallback to browser Torrent if server fails
     setTimeout(()=>{if(!video.readyState||video.readyState<2){video.src='';browserTorrent(hash,title);}},12000);
