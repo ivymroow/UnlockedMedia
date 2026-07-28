@@ -1,6 +1,13 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+
+// Prevent WebTorrent EPIPE from crashing the server
+process.on('uncaughtException', (err) => {
+  if (err.code === 'EPIPE' || err.message?.includes('EPIPE')) return;
+  console.error('Uncaught:', err);
+});
+
 const imdb = require('./imdb');
 const torrent = require('./torrent');
 const episodes = require('./episodes');
