@@ -164,12 +164,18 @@ async function loadEpisodeSources(id,season,episode){
     try{
       const r=await fetch(`https://torrentio.strem.fun/stream/series/${id}:${season}:${episode}.json`);
       const d=await r.json();
-      if(d?.streams)sources=d.streams.map(x=>({
-        provider:'Torrentio',
-        quality:(x.title||'').includes('4K')?'4K':(x.title||'').includes('1080')?'1080p':'Unknown',
-        seeds:0,peers:0,hash:x.infoHash,fileIndex:x.fileIdx||0,
-        magnet:`magnet:?xt=urn:btih:${x.infoHash}`,
-      }));
+      if(d?.streams)sources=d.streams.map(x=>{
+          const t=x.title||'';
+          const seedM=t.match(/👤\s*(\d+)/);
+          const sizeM=t.match(/💾\s*([\d.]+)\s*(GB|MB)/);
+          return {
+            provider:'Torrentio',
+            quality:t.includes('4K')?'4K':t.includes('1080')?'1080p':t.includes('720')?'720p':'Unknown',
+            size:sizeM?sizeM[1]+' '+sizeM[2]:'',
+            seeds:seedM?parseInt(seedM[1]):0,peers:0,hash:x.infoHash,fileIndex:x.fileIdx||0,
+            magnet:`magnet:?xt=urn:btih:${x.infoHash}`,
+          };
+        });
     }catch{}
   }
   if(!sources||!sources.length){list.innerHTML=`<p style="color:var(--text3);font-size:14px;padding:8px 0">No sources for ${title} ${q}.</p>`;return}
