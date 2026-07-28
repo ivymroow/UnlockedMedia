@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UnlockedMedia</title>
+
+<link rel="stylesheet" href="styles.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
+</head>
+<body>
+  <div id="app">
+    <header>
+      <div class="header-left">
+        <a href="#" class="logo" onclick="navigate('home')">UnlockedMedia</a>
+        <span class="mode-badge" id="modeBadge"></span>
+      </div>
+      <div class="header-center">
+        <div class="search-box">
+          <svg class="search-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+          </svg>
+          <input type="text" id="searchInput" placeholder="Search movies & shows..." autocomplete="off">
+        </div>
+      </div>
+      <div class="header-right">
+        <div id="userSection"></div>
+        <button class="icon-btn" onclick="toggleSettings()" title="Settings">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"/><path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72 1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <div id="setup" class="setup-overlay" style="display:none">
+      <div class="setup-card">
+        <h1>🎬 UnlockedMedia</h1>
+        <p class="setup-desc">Enter your backend URL to get started.</p>
+        <div class="setup-form">
+          <input type="text" id="backendUrlInput" placeholder="https://your-app.onrender.com">
+          <button onclick="saveBackendUrl()">Connect</button>
+        </div>
+        <p class="setup-hint">Run <code>npm start</code> locally or deploy to Render.</p>
+      </div>
+    </div>
+
+    <div id="settings-modal" class="modal" style="display:none">
+      <div class="modal-backdrop" onclick="toggleSettings()"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Settings</h2>
+          <button class="icon-btn" onclick="toggleSettings()">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div id="settingsAccount"></div>
+          <hr style="border-color:var(--surface3);margin:16px 0">
+          <label>Backend URL</label>
+          <div class="input-group">
+            <input type="text" id="settingsBackendInput" placeholder="https://your-app.onrender.com">
+            <button onclick="saveSettingsBackend()">Save</button>
+          </div>
+          <hr style="border-color:var(--surface3);margin:16px 0">
+          <p class="hint">No account needed to browse. Sign in to save watch progress and create a watchlist.</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="auth-modal" class="modal" style="display:none">
+      <div class="modal-backdrop" onclick="hideAuth()"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 id="authModalTitle">Sign In</h2>
+          <button class="icon-btn" onclick="hideAuth()">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <label>Username</label>
+          <input type="text" id="authUsername" class="modal-input" placeholder="Your username" spellcheck="false" autocomplete="off">
+          <label style="margin-top:12px">Password</label>
+          <input type="password" id="authPassword" class="modal-input" placeholder="Password" autocomplete="off">
+          <div id="emailField" style="display:none">
+            <label style="margin-top:12px">Email <span style="color:var(--text3);font-weight:400">(optional)</span></label>
+            <input type="email" id="authEmail" class="modal-input" placeholder="you@email.com" spellcheck="false">
+          </div>
+          <p style="color:#f87171;font-size:13px;margin-top:8px" id="authError"></p>
+          <p style="color:var(--text3);font-size:12px;margin-top:8px" id="pwWarning">⚠️ You cannot reset your password. Do not forget it.</p>
+          <button class="play-btn" style="width:100%;justify-content:center;margin-top:12px" onclick="doAuth()">Continue</button>
+          <p style="text-align:center;margin-top:12px;font-size:13px;color:var(--text3)" id="authToggle">Don't have an account? <a href="#" onclick="toggleAuthMode();return false">Sign Up</a></p>
+        </div>
+      </div>
+    </div>
+
+    <main id="main">
+      <div class="loading-screen" id="loadingScreen">
+        <div class="spinner"></div>
+        <p>Loading...</p>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/webtorrent@latest/webtorrent.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

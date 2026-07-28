@@ -1,0 +1,18 @@
+{
+  "name": "unlockedmedia",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Stream movies & shows from IMDb data via torrent streaming",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.110.9",
+    "axios": "^1.7.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.0",
+    "memory-chunk-store": "^1.3.5",
+    "webtorrent": "^1.9.7"
+  }
+}
