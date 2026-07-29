@@ -68,7 +68,7 @@ window.addEventListener('popstate',()=>{
 })
 function goBack(){if(state.prevState){state.view=state.prevState.view;state.data=state.prevState.data;state.prevState=null;render()}else navigate('home')}
 function img(p){return p||''}
-function fmt(s){if(!s)return'';const m=s.match(/^[\d.]+/);if(!m)return s;const n=parseFloat(m[0]);return s.includes('GB')?`${n.toFixed(1)} GB`:`${Math.round(n)} MB`}
+function fmt(s){if(!s)return'';const m=s.match(/^[\d.]+/);if(!m)return s;const n=parseFloat(m[0]);return s.includes('GB')?`${(n*1024).toFixed(0)} MB`:`${Math.round(n)} MB`}
 function title(i){return i.title||i.name||'Unknown'}
 function year(i){return i.year||''}
 function rating(i){return i.rating||i.vote_average?(i.rating||i.vote_average).toFixed(1):null}
