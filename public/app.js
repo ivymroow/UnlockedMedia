@@ -1,4 +1,4 @@
-let state={view:'home',query:'',player:null,mode:'standalone',prevState:null,user:null}
+﻿let state={view:'home',query:'',player:null,mode:'standalone',prevState:null,user:null}
 const cache=new Map()
 const itemCache=new Map()
 let backendUrl=localStorage.getItem('um_backend')||''
