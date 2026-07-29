@@ -8,8 +8,8 @@ const fs = require('fs');
 const MemoryChunkStore = require('memory-chunk-store');
 
 const client = new WebTorrent({
-  maxConns: 50,
-  dht: true,
+  maxConns: 30,
+  dht: false,
   tracker: true,
   store: chunkLength => new MemoryChunkStore(chunkLength),
 });
@@ -19,9 +19,6 @@ const TRACKERS = [
   'udp://tracker.coppersurfer.tk:6969/announce',
   'udp://tracker.leechers-paradise.org:6969/announce',
   'udp://tracker.internetwarriors.net:1337/announce',
-  'http://tracker.opentrackr.org:1337/announce',
-  'https://tracker.nanoha.org:443/announce',
-  'http://tracker1.bt.moack.co.kr:80/announce',
   'wss://tracker.webtorrent.dev',
   'wss://tracker.openwebtorrent.com',
 ];
