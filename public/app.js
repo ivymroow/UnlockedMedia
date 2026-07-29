@@ -1,4 +1,4 @@
-﻿let state={view:'home',query:'',player:null,mode:'standalone',prevState:null,user:null}
+let state={view:'home',query:'',player:null,mode:'standalone',prevState:null,user:null}
 const cache=new Map()
 const itemCache=new Map()
 let backendUrl=localStorage.getItem('um_backend')||''
@@ -45,7 +45,7 @@ async function standalone(path){
   throw new Error('Backend required')
 }
 async function imdbDetails(id){const k=`d:${id}`;const c=sessionStorage.getItem(k);if(c)return JSON.parse(c);let d={id,title:'',year:null,poster:'',overview:'',genres:[],runtime:null,cast:[],rating:null,type:'movie'};try{const r=await fetch(`https://v3.sg.media-imdb.com/suggestion/x/${id}.json`);const j=await r.json();const i=j.d?.find(x=>x.id===id)||j.d?.[0];if(i){d.title=i.l||'';d.year=i.y||null;d.poster=i.i?.[0]||'';d.cast=i.s?i.s.split(', '):[];d.type=(i.qid==='tvSeries'||i.qid==='tvMiniSeries')?'tv':'movie'}}catch{}try{const r=await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(d.title+(d.year?' '+d.year:'')+' film')}`);const w=await r.json();if(w.extract)d.overview=w.extract;if(!d.poster&&w.thumbnail?.source)d.poster=w.thumbnail.source}catch{}sessionStorage.setItem(k,JSON.stringify(d));return d}
-async function sources(title,year,imdbId){const k=`s:${imdbId||title}`;const c=sessionStorage.getItem(k);if(c)return JSON.parse(c);let src=[];try{const r=await fetch(`https://torrentio.strem.fun/stream/movie/${imdbId}.json`);const d=await r.json();if(d?.streams)for(const s of d.streams){const seedM=s.title?.match(/≡ƒæñ\s*(\d+)/);const sizeM=s.title?.match(/≡ƒÆ╛\s*([\d.]+)\s*(GB|MB)/);src.push({provider:'Torrentio',quality:((s.title||s.name||'').includes('4K')?'4K':(s.title||'').includes('1080')?'1080p':(s.title||'').includes('720')?'720p':'Unknown'),size:sizeM?sizeM[1]+' '+sizeM[2]:'',seeds:seedM?parseInt(seedM[1]):0,peers:0,hash:s.infoHash,fileIndex:s.fileIdx||0,magnet:mag(s.infoHash,(s.title||'')),})}}catch{}src.sort((a,b)=>(b.seeds||0)-(a.seeds||0));sessionStorage.setItem(k,JSON.stringify(src));return src}
+async function sources(title,year,imdbId){const k=`s:${imdbId||title}`;const c=sessionStorage.getItem(k);if(c)return JSON.parse(c);let src=[];try{const r=await fetch(`https://torrentio.strem.fun/stream/movie/${imdbId}.json`);const d=await r.json();if(d?.streams)for(const s of d.streams){const seedM=s.title?.match(/👤\s*(\d+)/);const sizeM=s.title?.match(/💾\s*([\d.]+)\s*(GB|MB)/);src.push({provider:'Torrentio',quality:((s.title||s.name||'').includes('4K')?'4K':(s.title||'').includes('1080')?'1080p':(s.title||'').includes('720')?'720p':'Unknown'),size:sizeM?sizeM[1]+' '+sizeM[2]:'',seeds:seedM?parseInt(seedM[1]):0,peers:0,hash:s.infoHash,fileIndex:s.fileIdx||0,magnet:mag(s.infoHash,(s.title||'')),})}}catch{}src.sort((a,b)=>(b.seeds||0)-(a.seeds||0));sessionStorage.setItem(k,JSON.stringify(src));return src}
 function mag(h,n){const tr=WT.map(t=>`tr=${encodeURIComponent(t)}`).join('&');return `magnet:?xt=urn:btih:${h}&dn=${encodeURIComponent(n)}&${tr}`}
 function qs(s){return document.querySelector(s)}
 function esc(s){if(!s)return'';const d=document.createElement('div');d.textContent=s;return d.innerHTML}
@@ -99,12 +99,12 @@ function renderUserSection(){
 }
 
 function H(){return `
-<div class="section" id="wlSection" style="display:none"><h2 class="section-title">≡ƒôï My Watchlist</h2><div class="grid" id="wlGrid"></div></div>
-<div class="section" id="cwSection" style="display:none"><h2 class="section-title">ΓÅ» Continue Watching</h2><div class="grid" id="cwGrid"></div></div>
-<div class="section" id="wdSection" style="display:none"><h2 class="section-title">Γ£à Watched</h2><div class="grid" id="wdGrid"></div></div>
-<div class="section"><h2 class="section-title">≡ƒöÑ Trending</h2><div class="grid" id="g0"></div></div>
-<div class="section"><h2 class="section-title">≡ƒôï Popular Movies</h2><div class="grid" id="g1"></div></div>
-<div class="section"><h2 class="section-title">≡ƒô║ Popular Shows</h2><div class="grid" id="g2"></div></div>
+<div class="section" id="wlSection" style="display:none"><h2 class="section-title">📋 My Watchlist</h2><div class="grid" id="wlGrid"></div></div>
+<div class="section" id="cwSection" style="display:none"><h2 class="section-title">⏯ Continue Watching</h2><div class="grid" id="cwGrid"></div></div>
+<div class="section" id="wdSection" style="display:none"><h2 class="section-title">✅ Watched</h2><div class="grid" id="wdGrid"></div></div>
+<div class="section"><h2 class="section-title">🔥 Trending</h2><div class="grid" id="g0"></div></div>
+<div class="section"><h2 class="section-title">📋 Popular Movies</h2><div class="grid" id="g1"></div></div>
+<div class="section"><h2 class="section-title">📺 Popular Shows</h2><div class="grid" id="g2"></div></div>
 <div class="loading-screen" id="HL"><div class="spinner"></div><p>Loading...</p></div>`}
 
 async function L(){
@@ -129,7 +129,7 @@ async function L(){
   }catch{}
 }
 
-function S(){return`<div class="section"><h2 class="section-title">≡ƒöì Results for "${esc(state.query)}"</h2><div class="grid" id="sg"></div><div class="loading-screen" id="sL"><div class="spinner"></div><p>Searching...</p></div></div>`}
+function S(){return`<div class="section"><h2 class="section-title">🔍 Results for "${esc(state.query)}"</h2><div class="grid" id="sg"></div><div class="loading-screen" id="sL"><div class="spinner"></div><p>Searching...</p></div></div>`}
 async function LS(){try{const r=await api('GET',`/api/search?q=${encodeURIComponent(state.query)}`);qs('#sL').style.display='none';G('sg',r)}catch(e){qs('#main').innerHTML=E(e.message)}}
 
 function D(){return`<div class="detail"><button class="detail-back" onclick="navigate('home')"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg> Back</button><div class="loading-screen" id="dL"><div class="spinner"></div><p>Loading...</p></div></div>`}
@@ -163,8 +163,8 @@ async function loadEpisodeSources(id,season,episode){
       const d=await r.json();
       if(d?.streams)sources=d.streams.map(x=>{
           const t=x.title||'';
-          const seedM=t.match(/≡ƒæñ\s*(\d+)/);
-          const sizeM=t.match(/≡ƒÆ╛\s*([\d.]+)\s*(GB|MB)/);
+          const seedM=t.match(/👤\s*(\d+)/);
+          const sizeM=t.match(/💾\s*([\d.]+)\s*(GB|MB)/);
           return {
             provider:'Torrentio',
             quality:t.includes('4K')?'4K':t.includes('1080')?'1080p':t.includes('720')?'720p':'Unknown',
@@ -179,22 +179,22 @@ async function loadEpisodeSources(id,season,episode){
   sources.sort((a,b)=>(b.seeds||0)-(a.seeds||0))
   list.innerHTML=sources.map(src=>{
     const dead = (src.seeds||0) === 0 && (src.peers||0) === 0
-    return `<div class="source-item${dead?' dead-source':''}"><div class="source-info"><span class="source-quality">${src.quality}</span><span class="source-size">${fmt(src.size)}</span><span class="source-seeds">Γ¼å ${src.seeds||0}</span><span class="source-peers">Γ¼ç ${src.peers||0}</span><span style="color:var(--text3);font-size:11px">${src.provider||''}</span></div><button class="source-play" onclick="play('${src.hash}',${src.fileIndex||0},'${esc(title)} ${q}','${src.quality}',${src.seeds||0})">${dead?'ΓÜá Try':'Γû╢ Play'}</button>${dead?'<span style="font-size:11px;color:var(--text3);margin-left:8px">0 seeds</span>':''}</div>`
+    return `<div class="source-item${dead?' dead-source':''}"><div class="source-info"><span class="source-quality">${src.quality}</span><span class="source-size">${fmt(src.size)}</span><span class="source-seeds">⬆ ${src.seeds||0}</span><span class="source-peers">⬇ ${src.peers||0}</span><span style="color:var(--text3);font-size:11px">${src.provider||''}</span></div><button class="source-play" onclick="play('${src.hash}',${src.fileIndex||0},'${esc(title)} ${q}','${src.quality}',${src.seeds||0})">${dead?'⚠ Try':'▶ Play'}</button>${dead?'<span style="font-size:11px;color:var(--text3);margin-left:8px">0 seeds</span>':''}</div>`
   }).join('')
 }
 
 function RD(d,sources,episodes){
   const t=d.title||'Unknown';const y=d.year||'';const rt=d.runtime?`${Math.floor(d.runtime/60)}h ${d.runtime%60}m`:'';const r=d.rating?d.rating.toFixed(1):'';const o=d.overview||'No overview available.';const g=d.genres||[];const c=d.cast&&d.cast.length?d.cast.join(', '):'';const isTv=episodes&&episodes.length>0
-  document.title=`${t} ┬╖ UnlockedMedia`
+  document.title=`${t} · UnlockedMedia`
   const posterUrl=d.poster||''
   
   // Watchlist button
   let wlBtn=''
   if(token){
-    wlBtn=`<button class="wl-btn" id="wlBtn" onclick="toggleWatchlist()">ΓÅ│ Loading...</button>`
+    wlBtn=`<button class="wl-btn" id="wlBtn" onclick="toggleWatchlist()">⏳ Loading...</button>`
     // Check watchlist status
     setTimeout(async()=>{
-      try{const r=await api('GET',`/api/watchlist/check?id=${d.id}`);const b=qs('#wlBtn');if(b){b.textContent=r.inList?'Γ£ô In Watchlist':'+ Watchlist';b.className='wl-btn'+(r.inList?' in-list':'')}}catch{}
+      try{const r=await api('GET',`/api/watchlist/check?id=${d.id}`);const b=qs('#wlBtn');if(b){b.textContent=r.inList?'✓ In Watchlist':'+ Watchlist';b.className='wl-btn'+(r.inList?' in-list':'')}}catch{}
     },50)
   }
 
@@ -214,7 +214,7 @@ function RD(d,sources,episodes){
     episodeHTML=`<div class="episode-picker"><div class="sources-title">Select Episode</div><div class="episode-controls"><select id="seasonSelect">${episodes.map(s=>`<option value="${s.season}">Season ${s.season} (${s.episodes.length} eps)</option>`).join('')}</select><select id="episodeSelect"></select></div><div id="episodeInfo" class="episode-info"></div><div class="sources-section" style="margin-top:12px"><div class="sources-title">Sources</div><div class="sources-list" id="sl"><div class="loading-screen" style="padding:12px"><div class="spinner"></div></div></div></div></div>`
   }
 
-  qs('#dL').outerHTML=`<div class="detail-hero"><div class="detail-poster">${posterUrl?`<img src="${posterUrl}" alt="${esc(t)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentElement.innerHTML='<div class=placeholder style=padding:80px;text-align:center;color:var(--text3);font-size:48px>≡ƒÄ¼</div>'">`:'<div class="placeholder" style="padding:80px;text-align:center;color:var(--text3);font-size:48px">≡ƒÄ¼</div>'}</div><div class="detail-info"><h1 class="detail-title">${esc(t)}</h1><div class="detail-meta">${y?`<span>≡ƒôà ${y}</span>`:''}${rt?`<span>ΓÅ▒ ${rt}</span>`:''}</div><div class="detail-genres">${g.map(x=>`<span>${x}</span>`).join('')}</div>${r?`<div class="detail-rating"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg> ${r}/10</div>`:''}${wlBtn?`<div style="margin-top:12px">${wlBtn}</div>`:''}<p class="detail-overview">${esc(o)}</p>${c?`<p class="detail-cast"><strong>Stars:</strong> ${esc(c)}</p>`:''}${episodeHTML||`<div class="sources-section"><div class="sources-title">Available Sources</div><div class="sources-list" id="sl"></div></div>`}</div></div>`
+  qs('#dL').outerHTML=`<div class="detail-hero"><div class="detail-poster">${posterUrl?`<img src="${posterUrl}" alt="${esc(t)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentElement.innerHTML='<div class=placeholder style=padding:80px;text-align:center;color:var(--text3);font-size:48px>🎬</div>'">`:'<div class="placeholder" style="padding:80px;text-align:center;color:var(--text3);font-size:48px">🎬</div>'}</div><div class="detail-info"><h1 class="detail-title">${esc(t)}</h1><div class="detail-meta">${y?`<span>📅 ${y}</span>`:''}${rt?`<span>⏱ ${rt}</span>`:''}</div><div class="detail-genres">${g.map(x=>`<span>${x}</span>`).join('')}</div>${r?`<div class="detail-rating"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg> ${r}/10</div>`:''}${wlBtn?`<div style="margin-top:12px">${wlBtn}</div>`:''}<p class="detail-overview">${esc(o)}</p>${c?`<p class="detail-cast"><strong>Stars:</strong> ${esc(c)}</p>`:''}${episodeHTML||`<div class="sources-section"><div class="sources-title">Available Sources</div><div class="sources-list" id="sl"></div></div>`}</div></div>`
 
   if(isTv){
     const initEpisodes = () => {
@@ -231,7 +231,7 @@ function RD(d,sources,episodes){
           }
     if(list)list.innerHTML=sources.map(s=>{
       const dead = (s.seeds||0) === 0 && (s.peers||0) === 0
-      return `<div class="source-item${dead?' dead-source':''}"><div class="source-info"><span class="source-quality">${s.quality}</span><span class="source-size">${fmt(s.size)}</span><span class="source-seeds">Γ¼å ${s.seeds||0}</span><span class="source-peers">Γ¼ç ${s.peers||0}</span><span style="color:var(--text3);font-size:11px">${s.provider||''}</span></div><button class="source-play" onclick="play('${s.hash}',${s.fileIndex||0},'${esc(t)}','${s.quality}',${s.seeds||0})">${dead?'ΓÜá Try':'Γû╢ Play'}</button>${dead?'<span style="font-size:11px;color:var(--text3);margin-left:8px">0 seeds</span>':''}</div>`
+      return `<div class="source-item${dead?' dead-source':''}"><div class="source-info"><span class="source-quality">${s.quality}</span><span class="source-size">${fmt(s.size)}</span><span class="source-seeds">⬆ ${s.seeds||0}</span><span class="source-peers">⬇ ${s.peers||0}</span><span style="color:var(--text3);font-size:11px">${s.provider||''}</span></div><button class="source-play" onclick="play('${s.hash}',${s.fileIndex||0},'${esc(t)}','${s.quality}',${s.seeds||0})">${dead?'⚠ Try':'▶ Play'}</button>${dead?'<span style="font-size:11px;color:var(--text3);margin-left:8px">0 seeds</span>':''}</div>`
     }).join('')
   }
 }
@@ -239,11 +239,11 @@ function RD(d,sources,episodes){
 async function toggleWatchlist(){
   const id=state.data?.id;if(!id)return
   const btn=qs('#wlBtn');if(!btn)return
-  const wasIn=btn.textContent.includes('In')||btn.textContent.includes('Γ£ô')
+  const wasIn=btn.textContent.includes('In')||btn.textContent.includes('✓')
   btn.textContent='...'
   try{
     if(wasIn){await api('POST','/api/watchlist/remove',{id});btn.textContent='+ Watchlist';btn.className='wl-btn'}
-    else{await api('POST','/api/watchlist/add',{id,title:state.data._title||'',poster:state.data._poster||'',type:state.data.type||'movie'});btn.textContent='Γ£ô In Watchlist';btn.className='wl-btn in-list'}
+    else{await api('POST','/api/watchlist/add',{id,title:state.data._title||'',poster:state.data._poster||'',type:state.data.type||'movie'});btn.textContent='✓ In Watchlist';btn.className='wl-btn in-list'}
   }catch{btn.textContent='Error';btn.className='wl-btn'}
 }
 
@@ -275,12 +275,12 @@ function fillEpisodes(isSeasonChange){
 function updateEpisodeInfo(){const eps=window._eps;if(!eps)return;const epData=eps.find(s=>s.season===selectedSeason);if(!epData)return;const ep=epData.episodes.find(e=>e.number===selectedEpisode);const info=qs('#episodeInfo');if(info&&ep)info.innerHTML=ep.summary?`<p style="font-size:13px;color:var(--text2);margin-top:8px">${esc(ep.summary.slice(0,300))}</p>`:''}
 
 async function play(hash,fi,title,quality,seeds){
-  if (seeds !== undefined && seeds === 0 && state.mode === 'backend' && !confirm('This source has 0 seeders ΓÇö likely dead. Try a different source?')) return;
+  if (seeds !== undefined && seeds === 0 && state.mode === 'backend' && !confirm('This source has 0 seeders — likely dead. Try a different source?')) return;
   state._savedSeason = selectedSeason;
   state._savedEpisode = selectedEpisode;
   state.view='player'
   state._dlId = null;
-  qs('#app').innerHTML='<div class="player-container"><button class="player-back" onclick="cp()"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg> Back</button><div class="player-wrapper" id="pw"><div class="player-loading" id="pl"><div class="spinner"></div><p>Connecting to stream...</p><span class="player-progress-text" id="ps">Initializing</span></div><video id="player" style="display:none;width:100%;height:100%;background:#000"></video><div id="customControls" style="display:none;position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.9));padding:40px 16px 8px;z-index:5"><div style="display:flex;align-items:center;gap:10px;width:100%"><button id="ppBtn" style="background:none;border:none;color:#fff;font-size:22px;cursor:pointer;width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:50%">Γû╢</button><span id="timeDisplay" style="color:#ccc;font-size:13px;font-family:monospace;white-space:nowrap">0:00 / 0:00</span><div style="flex:1;height:6px;background:rgba(255,255,255,.15);border-radius:3px;cursor:pointer;position:relative" id="seekBar"><div id="seekFill" style="height:100%;width:0%;background:var(--primary);border-radius:3px;pointer-events:none"></div><div id="seekThumb" style="display:none;position:absolute;top:-3.5px;width:13px;height:13px;border-radius:50%;background:var(--primary);transform:translateX(-50%);pointer-events:none;box-shadow:0 0 4px rgba(0,0,0,.5)"></div></div><div style="display:flex;align-items:center;gap:6px"><button id="volBtn" style="background:var(--primary);border:none;width:32px;height:32px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" width="16" height="16" fill="#fff"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg></button><input type="range" id="volSlider" min="0" max="1" step="0.05" value="1" style="width:50px;height:4px;-webkit-appearance:none;appearance:none;background:rgba(255,255,255,.2);border-radius:2px;outline:none;cursor:pointer" /></div><button id="fsBtn" style="background:none;border:none;color:#fff;font-size:18px;cursor:pointer;width:36px;height:36px;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg></button></div></div></div></div>'
+  qs('#app').innerHTML='<div class="player-container"><button class="player-back" onclick="cp()"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg> Back</button><div class="player-wrapper" id="pw"><div class="player-loading" id="pl"><div class="spinner"></div><p>Connecting to stream...</p><span class="player-progress-text" id="ps">Initializing</span></div><video id="player" style="display:none;width:100%;height:100%;background:#000"></video><div id="customControls" style="display:none;position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.9));padding:40px 16px 8px;z-index:5"><div style="display:flex;align-items:center;gap:10px;width:100%"><button id="ppBtn" style="background:none;border:none;color:#fff;font-size:22px;cursor:pointer;width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:50%">▶</button><span id="timeDisplay" style="color:#ccc;font-size:13px;font-family:monospace;white-space:nowrap">0:00 / 0:00</span><div style="flex:1;height:6px;background:rgba(255,255,255,.15);border-radius:3px;cursor:pointer;position:relative" id="seekBar"><div id="seekFill" style="height:100%;width:0%;background:var(--primary);border-radius:3px;pointer-events:none"></div><div id="seekThumb" style="display:none;position:absolute;top:-3.5px;width:13px;height:13px;border-radius:50%;background:var(--primary);transform:translateX(-50%);pointer-events:none;box-shadow:0 0 4px rgba(0,0,0,.5)"></div></div><div style="display:flex;align-items:center;gap:6px"><button id="volBtn" style="background:var(--primary);border:none;width:32px;height:32px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" width="16" height="16" fill="#fff"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg></button><input type="range" id="volSlider" min="0" max="1" step="0.05" value="1" style="width:50px;height:4px;-webkit-appearance:none;appearance:none;background:rgba(255,255,255,.2);border-radius:2px;outline:none;cursor:pointer" /></div><button id="fsBtn" style="background:none;border:none;color:#fff;font-size:18px;cursor:pointer;width:36px;height:36px;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg></button></div></div></div></div>'
 
   if(state.mode==='backend'){
     const base=state.backendUrl||''
@@ -313,7 +313,7 @@ async function play(hash,fi,title,quality,seeds){
       if(video._enableSeek)video._enableSeek();
     }catch(e){perr('Buffer failed: '+e.message)}
 
-    // No streaming fallback ΓÇö wait for full download. User can go back if stuck.
+    // No streaming fallback — wait for full download. User can go back if stuck.
   } else {
     const ps=qs('#ps');if(ps)ps.textContent='No backend server available.';
   }
@@ -329,7 +329,7 @@ async function browserTorrent(hash,title){
     const tor=wt.add(mag(hash,title));ps.textContent='Connecting...'
     tor.on('warning',e=>ps.textContent=e.message);
     tor.on('wire',()=>ps.textContent=`${tor.numPeers} peer(s)`);
-    tor.on('download',()=>ps.textContent=`Γ¼ç ${(tor.downloadSpeed/1e6).toFixed(1)} MB/s ┬╖ ${(tor.progress*100).toFixed(0)}%`);
+    tor.on('download',()=>ps.textContent=`⬇ ${(tor.downloadSpeed/1e6).toFixed(1)} MB/s · ${(tor.progress*100).toFixed(0)}%`);
     await playTorrentFile(tor,ps);
   }catch(e){perr(e.message)}
 }
@@ -360,7 +360,7 @@ function initCustomPlayer(video, baseUrl){
   const volSlider = qs('#volSlider');
   const fs = qs('#fsBtn');
 
-  // Audio context ΓÇö unlock on first interaction
+  // Audio context — unlock on first interaction
   let audioCtx, audioSrc;
   function unlockAudio() {
     if (audioSrc || !video) return;
@@ -388,12 +388,12 @@ function initCustomPlayer(video, baseUrl){
 
   // Play/pause
   pp.onclick = () => {
-    if (video.paused) { video.play(); pp.textContent = 'ΓÅ╕'; }
-    else { video.pause(); pp.textContent = 'Γû╢'; }
+    if (video.paused) { video.play(); pp.textContent = '⏸'; }
+    else { video.pause(); pp.textContent = '▶'; }
   };
-  video.onplay = () => { pp.textContent = 'ΓÅ╕'; };
-  video.onpause = () => { pp.textContent = 'Γû╢'; };
-  video.onended = () => { pp.textContent = 'Γû╢'; };
+  video.onplay = () => { pp.textContent = '⏸'; };
+  video.onpause = () => { pp.textContent = '▶'; };
+  video.onended = () => { pp.textContent = '▶'; };
 
   // Time display + seek bar + progress save
   video.ontimeupdate = () => {
@@ -410,7 +410,7 @@ function initCustomPlayer(video, baseUrl){
     }
   };
 
-  // Seek ΓÇö disabled during stream, enabled after full download
+  // Seek — disabled during stream, enabled after full download
   let seeking = false;
   function doSeek(clientX) {
     if (!video.duration || !seekEnabled) return;
@@ -486,7 +486,7 @@ function G(id,items){
   el.innerHTML=items.map(i=>{
     const p=img(i.poster);const t=title(i);const y=year(i);const r=rating(i);const tp=i.type==='tv'?'TV':'Movie'
     const progress=i.progress?`<div class="progress-bar"><div class="progress-fill" style="width:${Math.min(i.progress*100,100)}%"></div></div>`:''
-    return `<div class="card" onclick="navigate('detail',{id:'${i.id}',type:'${tp==='TV'?'tv':'movie'}',title:'${esc(title(i))}',year:'${year(i)}'})"><div class="card-poster">${p?`<img src="${p}" alt="${esc(t)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentElement.innerHTML='<div class=placeholder>≡ƒÄ¼</div>'">`:'<div class="placeholder">≡ƒÄ¼</div>'}<span class="card-type">${tp}</span></div><div class="card-body"><h3 title="${esc(t)}">${esc(t)}</h3><div class="card-meta">${y?`<span>${y}</span>`:''}${r?`<span class="card-rating"><svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>${r}</span>`:''}</div>${progress}</div></div>`
+    return `<div class="card" onclick="navigate('detail',{id:'${i.id}',type:'${tp==='TV'?'tv':'movie'}',title:'${esc(title(i))}',year:'${year(i)}'})"><div class="card-poster">${p?`<img src="${p}" alt="${esc(t)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentElement.innerHTML='<div class=placeholder>🎬</div>'">`:'<div class="placeholder">🎬</div>'}<span class="card-type">${tp}</span></div><div class="card-body"><h3 title="${esc(t)}">${esc(t)}</h3><div class="card-meta">${y?`<span>${y}</span>`:''}${r?`<span class="card-rating"><svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>${r}</span>`:''}</div>${progress}</div></div>`
   }).join('')
 }
 
@@ -526,7 +526,7 @@ async function init(){
     const badge=qs('#modeBadge');if(badge){badge.textContent='[WIP]';badge.className='mode-badge';badge.style.display='inline-block'}
     if(state.mode==='standalone'&&!navigator.onLine){qs('#setup').style.display='flex';return}
     qs('#setup').style.display='none'
-    // Token check ΓÇö don't block render if it fails
+    // Token check — don't block render if it fails
     if(token){try{const u=await api('GET','/api/auth/user');state.user=u}catch{localStorage.removeItem('um_token');token=''}}
     restoreFromHash()
     if(state.view==='search'&&state.query)qs('#searchInput').value=state.query
