@@ -50,11 +50,12 @@ async function transcodeStream(inputStream, req, res) {
   let firstChunk = null;
   const gotFirst = new Promise(resolve => {
     ff.stdout.once('data', chunk => { firstChunk = chunk; resolve(true); });
-    setTimeout(() => resolve(false), 10000);
+    setTimeout(() => resolve(false), 30000);
   });
 
   const ok = await gotFirst;
   if (!ok || !firstChunk) {
+    console.log('FFmpeg output timeout — falling back to direct stream');
     ff.kill();
     return null;
   }
