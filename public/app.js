@@ -285,33 +285,33 @@ async function play(hash,fi,title,quality,seeds){
   if(state.mode==='backend'){
     const base=state.backendUrl||''
     const video=qs('#player')
-    // Stream instantly, full file buffers in background for seeking
-    video.muted=false;video.volume=1;
-    video.src=`${base}/api/stream/${hash}?fileIndex=${fi}`;
-    video.onerror=()=>perr('Stream failed.');
-    initCustomPlayer(video,base);
-
-    (async()=>{
-      try{
-        const r=await fetch(`${base}/api/download`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({hash,fileIndex:fi})});
-        const d=await r.json();
-        if(d.error)return;
-        const id=d.id;
-        const poll=async()=>{
-          try{
-            const s=await(await fetch(`${base}/api/download/${id}/status`)).json();
-            if(s.done){
-              const t=video.currentTime;const p=!video.paused;
-              video.src=`${base}/api/download/${id}/file`;
-              video.currentTime=t;if(p)video.play().catch(()=>{});
-              if(video._enableSeek)video._enableSeek();
-            }
-          }catch{}
-          setTimeout(poll,3000);
-        };
-        setTimeout(poll,3000);
-      }catch{}
-    })();
+    // Buffer full stream in background, then play with seeking
+    const ps=qs('#ps');if(ps)ps.textContent='Buffering stream...';
+    try{
+      const r=await fetch(`${base}/api/stream/${hash}?fileIndex=${fi}`);
+      if(!r.ok){perr('Stream failed to start.');return}
+      const ct=r.headers.get('content-length');
+      const total=ct?parseInt(ct):0;
+      if(ps)ps.textContent=total?`Downloading 0/${(total/1e6).toFixed(0)}MB`:'Downloading...';
+      const reader=r.body.getReader();
+      const chunks=[];
+      let received=0;
+      while(true){
+        const{done,value}=await reader.read();
+        if(done)break;
+        chunks.push(value);
+        received+=value.length;
+        if(total&&ps)ps.textContent=`Downloading ${Math.round(received/total*100)}% (${(received/1e6).toFixed(1)}/${(total/1e6).toFixed(0)}MB)`;
+        else if(ps)ps.textContent=`Downloading ${(received/1e6).toFixed(1)}MB`;
+      }
+      if(ps)ps.textContent='Starting...';
+      const blob=new Blob(chunks,{type:'video/mp4'});
+      qs('#pl').style.display='none';video.style.display='block';
+      video.muted=false;video.volume=1;
+      video.src=URL.createObjectURL(blob);
+      initCustomPlayer(video,base);
+      if(video._enableSeek)video._enableSeek();
+    }catch(e){perr('Buffer failed: '+e.message)}
 
     // No streaming fallback — wait for full download. User can go back if stuck.
   } else {
