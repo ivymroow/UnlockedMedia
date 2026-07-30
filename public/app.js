@@ -138,6 +138,16 @@ async function LD(){
   const{id,type,title:t, year:y}=state.data
   const tHint = t || '';
   const yHint = y || '';
+  // Pre-buffer best source when page loads (seamless)
+  if(type==='movie' && state.mode==='backend'){
+    (async()=>{
+      try{
+        const src=await api('GET',`/api/movie/${id}/sources?title=${encodeURIComponent(tHint)}&year=${yHint}&type=${type}`);
+        const best=src?.sort((a,b)=>(b.seeds||0)-(a.seeds||0))[0];
+        if(best?.hash)fetch(`${state.backendUrl||''}/api/download`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({hash:best.hash,fileIndex:best.fileIndex||0})}).catch(()=>{});
+      }catch{}
+    })();
+  }
   try{
     const d=await api('GET',`/api/movie/${id}?type=${type}&title=${encodeURIComponent(tHint)}&year=${yHint}`)
     state.data._title=d.title||'';state.data._year=d.year||'';state.data._poster=d.poster||''
@@ -280,17 +290,43 @@ async function play(hash,fi,title,quality,seeds){
   state._savedEpisode = selectedEpisode;
   state.view='player'
   state._dlId = null;
-  qs('#app').innerHTML='<div class="player-container"><button class="player-back" onclick="cp()"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg> Back</button><div class="player-wrapper" id="pw"><div id="embedLoad" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:12px;padding:40px"><div class="spinner"></div><p>Loading stream...</p><p style="font-size:12px;color:var(--text3)">You may need to complete a CAPTCHA to continue</p></div><iframe id="embedPlayer" style="display:none;width:100%;height:100%;border:none" allowfullscreen allow="autoplay;encrypted-media"></iframe></div></div>'
+  qs('#app').innerHTML='<div class="player-container"><button class="player-back" onclick="cp()"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg> Back</button><div class="player-wrapper" id="pw"><div class="player-loading" id="pl"><div class="spinner"></div><p>Connecting to stream...</p><span class="player-progress-text" id="ps">Initializing</span></div><video id="player" style="display:none;width:100%;height:100%;background:#000"></video><div id="customControls" style="display:none;position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.9));padding:40px 16px 8px;z-index:5"><div style="display:flex;align-items:center;gap:10px;width:100%"><button id="ppBtn" style="background:none;border:none;color:#fff;font-size:22px;cursor:pointer;width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:50%">▶</button><span id="timeDisplay" style="color:#ccc;font-size:13px;font-family:monospace;white-space:nowrap">0:00 / 0:00</span><div style="flex:1;height:6px;background:rgba(255,255,255,.15);border-radius:3px;cursor:pointer;position:relative" id="seekBar"><div id="seekFill" style="height:100%;width:0%;background:var(--primary);border-radius:3px;pointer-events:none"></div><div id="seekThumb" style="display:none;position:absolute;top:-3.5px;width:13px;height:13px;border-radius:50%;background:var(--primary);transform:translateX(-50%);pointer-events:none;box-shadow:0 0 4px rgba(0,0,0,.5)"></div></div><div style="display:flex;align-items:center;gap:6px"><button id="volBtn" style="background:var(--primary);border:none;width:32px;height:32px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" width="16" height="16" fill="#fff"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg></button><input type="range" id="volSlider" min="0" max="1" step="0.05" value="1" style="width:50px;height:4px;-webkit-appearance:none;appearance:none;background:rgba(255,255,255,.2);border-radius:2px;outline:none;cursor:pointer" /></div><button id="fsBtn" style="background:none;border:none;color:#fff;font-size:18px;cursor:pointer;width:36px;height:36px;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg></button></div></div></div></div>'
 
-  // No peers — load from embed service (vidsrc.in)
-  qs('#embedLoad').style.display='none';
-  const iframe=qs('#embedPlayer');
-  iframe.style.display='block';
-  const imdbId=state.data?.id;
-  const type=state.data?.type||'movie';
-  iframe.src=type==='tv'
-    ? `https://vidsrc.in/embed/tv/${imdbId}/${selectedSeason||1}/${selectedEpisode||1}`
-    : `https://vidsrc.in/embed/movie/${imdbId}`;
+  if(state.mode==='backend'){
+    const base=state.backendUrl||''
+    const video=qs('#player')
+    // Buffer full stream in background, then play with seeking
+    const ps=qs('#ps');if(ps)ps.textContent='Buffering stream...';
+    try{
+      const r=await fetch(`${base}/api/stream/${hash}?fileIndex=${fi}`);
+      if(!r.ok){perr('Stream failed to start.');return}
+      const ct=r.headers.get('content-length');
+      const total=ct?parseInt(ct):0;
+      if(ps)ps.textContent=total?`Downloading 0/${(total/1e6).toFixed(0)}MB`:'Downloading...';
+      const reader=r.body.getReader();
+      const chunks=[];
+      let received=0;
+      while(true){
+        const{done,value}=await reader.read();
+        if(done)break;
+        chunks.push(value);
+        received+=value.length;
+        if(total&&ps)ps.textContent=`Downloading ${Math.round(received/total*100)}% (${(received/1e6).toFixed(1)}/${(total/1e6).toFixed(0)}MB)`;
+        else if(ps)ps.textContent=`Downloading ${(received/1e6).toFixed(1)}MB`;
+      }
+      if(ps)ps.textContent='Starting...';
+      const blob=new Blob(chunks,{type:'video/mp4'});
+      qs('#pl').style.display='none';video.style.display='block';
+      video.muted=false;video.volume=1;
+      video.src=URL.createObjectURL(blob);
+      initCustomPlayer(video,base);
+      if(video._enableSeek)video._enableSeek();
+    }catch(e){perr('Buffer failed: '+e.message)}
+
+    // No streaming fallback — wait for full download. User can go back if stuck.
+  } else {
+    const ps=qs('#ps');if(ps)ps.textContent='No backend server available.';
+  }
 }
 
 async function browserTorrent(hash,title){
