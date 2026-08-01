@@ -201,7 +201,7 @@ async function startDownload(hash,fi,infoHash,onProgress,onDone){
 async function playBest(){
   if(!state._sources||!state._sources.length)return
   if(state.mode!=='backend'){alert('Backend required');return}
-  const alive=state._sources.filter(s=!(state._sources.some(x=>(x.seeds||0)===0&&(x.peers||0)===0))||(s.seeds||0)>0||(s.peers||0)>0)
+  const alive=state._sources.filter(s=>(s.seeds||0)>0||(s.peers||0)>0)
   if(!alive.length){alert('No viable sources');return}
   const title=state.data?._title||''
   state.view='player';document.title=`${title} · SFlix`;qs('#app').innerHTML=playerHTML(title)
