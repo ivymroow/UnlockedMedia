@@ -29,7 +29,7 @@ app.use(express.static(path.join(__dirname, '..', 'public'), { maxAge: '1h' }));
 app.get('/health', (req, res) => res.json({ status: 'ok', uptime: process.uptime() }));
 
 app.get('/api/status', (req, res) => {
-  res.json({ mode: 'backend', streams: media.getStats() });
+  res.json({ mode: 'backend', ...media.getStats() });
 });
 
 app.get('/api/search', async (req, res) => {

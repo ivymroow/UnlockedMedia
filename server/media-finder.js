@@ -188,7 +188,7 @@ function getOrStart(link) {
   const hashMatch = link.match(/urn:btih:([a-fA-F0-9]+)/);
   const infoHash = hashMatch ? hashMatch[1].toLowerCase() : '';
 
-  let existing = client[b('dG9ycmVudHM=')].find(t => t.infoHash?.toLowerCase() === infoHash);
+  let existing = client[_d('dG9ycmVudHM=')].find(t => t.infoHash?.toLowerCase() === infoHash);
   if (existing) {
     existing._lastUsed = Date.now();
     streamPool.set(link.toLowerCase(), existing);
@@ -207,7 +207,7 @@ function getOrStart(link) {
   } catch (e) {
     const cachedStream = streamPool.get(link.toLowerCase());
     if (cachedStream) return cachedStream;
-    const internalStream = client[b('dG9ycmVudHM=')].find(t => t.infoHash?.toLowerCase() === infoHash);
+    const internalStream = client[_d('dG9ycmVudHM=')].find(t => t.infoHash?.toLowerCase() === infoHash);
     if (internalStream) return internalStream;
     throw new Error(`Cannot add source: ${e.message}`);
   }
@@ -291,7 +291,7 @@ function getVideo(stream) {
 
 function getStats() {
   return {
-    streams: client[b('dG9ycmVudHM=')].map(t => ({
+    streams: client[_d('dG9ycmVudHM=')].map(t => ({
       infoHash: t.infoHash, name: t.name, progress: t.progress,
       downloadSpeed: t.downloadSpeed, uploadSpeed: t.uploadSpeed, numPeers: t.numPeers,
       files: t.files?.map(f => ({ name: f.name, length: f.length })),
