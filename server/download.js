@@ -1,5 +1,6 @@
-const { transcodeStreamToFile, hasFfmpeg } = require('./transcode');
+const { transcodeStreamToFile } = require('./transcode');
 const media = require('./media-finder');
+const r2 = require('./r2');
 const crypto = require('crypto');
 const fs = require('fs');
 const os = require('os');
@@ -16,7 +17,7 @@ try {
 function createDownload(infoHash, fileIndex) {
   const id = crypto.randomBytes(8).toString('hex');
   const outPath = path.join(TMP, `ws-${id}.mp4`);
-  const entry = { id, infoHash, fileIndex, progress: 0, speed: 0, done: false, error: null, filePath: outPath, subData: null, startTime: Date.now() };
+  const entry = { id, infoHash, fileIndex, progress: 0, speed: 0, done: false, error: null, filePath: outPath, r2Url: null, subData: null, startTime: Date.now() };
   downloads.set(id, entry);
 
   const link = media.makeLink(infoHash, 'download');
@@ -27,14 +28,9 @@ function createDownload(infoHash, fileIndex) {
     const file = tor.files?.[fileIndex] || media.getVideo(tor);
     if (!file) { entry.error = 'No video file found'; return; }
 
-    // Start piping immediately — download + transcode run in parallel
     const track = setInterval(() => {
       entry.progress = tor.progress;
       entry.speed = tor.downloadSpeed;
-      if (entry.done && entry.filePath) {
-        clearInterval(track);
-        try { entry.outSize = fs.statSync(entry.filePath).size; } catch {}
-      }
     }, 800);
 
     setTimeout(() => {
@@ -56,6 +52,15 @@ function createDownload(infoHash, fileIndex) {
         } catch {}
       }
 
+      // Upload to R2 if configured
+      if (r2.configured()) {
+        try {
+          entry.r2Url = await r2.uploadFile(outPath, infoHash);
+          try { fs.unlinkSync(outPath); } catch {}
+          entry.filePath = null;
+        } catch (e) { console.log('R2 upload failed:', e.message); }
+      }
+
       entry.done = true;
       entry.progress = 1;
     } catch (e) {
@@ -70,21 +75,21 @@ function createDownload(infoHash, fileIndex) {
 function getStatus(id) {
   const entry = downloads.get(id);
   if (!entry) return null;
-  if (entry.done && entry.filePath && !entry.outSize) {
-    try { entry.outSize = fs.statSync(entry.filePath).size; } catch {}
-  }
   return {
     id: entry.id, progress: entry.progress, speed: entry.speed,
     done: entry.done, error: entry.error,
     elapsed: Date.now() - entry.startTime,
-    hasSubs: !!entry.subData, outSize: entry.outSize || 0,
+    hasSubs: !!entry.subData, hasR2: !!entry.r2Url,
   };
 }
 
 function getFile(id) {
   const entry = downloads.get(id);
-  if (!entry || !entry.done || !entry.filePath) return null;
-  return entry.filePath;
+  if (!entry || !entry.done) return null;
+  // Return R2 URL if available, otherwise local path
+  if (entry.r2Url) return { url: entry.r2Url, r2: true };
+  if (entry.filePath) return { url: entry.filePath, r2: false };
+  return null;
 }
 
 function getSubtitles(id) {
