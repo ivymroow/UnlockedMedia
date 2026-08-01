@@ -17,6 +17,7 @@ const supabase = require('./supabase');
 const { transcodeStream, hasFfmpeg } = require('./transcode');
 const sources = require('./source-finder');
 const download = require('./download');
+const debrid = require('./debrid');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -132,6 +133,7 @@ app.get('/api/show/:id/sources', async (req, res) => {
 app.post('/api/download', express.json(), async (req, res) => {
   const { hash, fileIndex = 0 } = req.body;
   if (!hash) return res.status(400).json({ error: 'Hash required' });
+  if (!debrid.getKey()) return res.status(400).json({ error: 'No RD key configured' });
   const dl = download.createDownload(hash, fileIndex);
   res.json({ id: dl.id, error: dl.error });
 });
@@ -154,46 +156,29 @@ app.get('/api/download/:id/file', (req, res) => {
   setTimeout(() => download.cleanup(req.params.id), 60000);
 });
 
+app.get('/api/download/:id/subtitles', (req, res) => {
+  const vtt = download.getSubtitles(req.params.id);
+  if (!vtt) return res.status(404).json({ error: 'No subtitles' });
+  res.set('Content-Type', 'text/vtt; charset=utf-8');
+  res.send(vtt);
+});
+
+app.post('/api/debrid/key', express.json(), (req, res) => {
+  const { key } = req.body;
+  if (!key) return res.status(400).json({ error: 'Key required' });
+  debrid.setKey(key);
+  res.json({ ok: true });
+});
+
 app.post('/api/race', express.json(), async (req, res) => {
-  const { sources } = req.body;
-  if (!sources?.length) return res.status(400).json({ error: 'Sources required' });
-
-  const candidates = sources.slice(0, 5);
-  let winner = null;
-
-  try {
-    const checkPromises = candidates.map((s, i) => new Promise((resolve, reject) => {
-      (async () => {
-        try {
-          const link = media.makeLink(s.hash, 'race');
-          const tor = media.getOrStart(link);
-          await media.waitForData(tor, 10000);
-          if (tor.numPeers > 0 || tor.downloadSpeed > 0 || tor.progress > 0) {
-            resolve({ tor, index: i, hash: s.hash, fileIndex: s.fileIndex || 0, peers: tor.numPeers, speed: tor.downloadSpeed, name: tor.name });
-            return;
-          }
-          await Promise.race([
-            new Promise(r => { tor.once('wire', r); tor.once('download', r); }),
-            new Promise((_, rj) => setTimeout(rj, 5000)),
-          ]);
-          if (tor.numPeers > 0 || tor.downloadSpeed > 0) {
-            resolve({ tor, index: i, hash: s.hash, fileIndex: s.fileIndex || 0, peers: tor.numPeers, speed: tor.downloadSpeed, name: tor.name });
-          } else {
-            reject(new Error('No peers'));
-          }
-        } catch (e) { reject(e); }
-      })();
-    }));
-
-    winner = await Promise.any(checkPromises);
-  } catch (e) {
-    return res.status(404).json({ error: 'No viable source found' });
+  const { sources: srcs } = req.body;
+  if (!srcs?.length) return res.status(400).json({ error: 'Sources required' });
+  if (!debrid.getKey()) return res.status(400).json({ error: 'No RD key configured' });
+  for (const s of srcs) {
+    try { const cached = await debrid.checkCached(s.hash); if (cached) { const dl = download.createDownload(s.hash, s.fileIndex || 0); return res.json({ found: true, id: dl.id, hash: s.hash, cached: true, error: dl.error }); } } catch {}
   }
-
-  if (!winner) return res.status(404).json({ error: 'No viable source found' });
-
-  const dl = download.createDownload(winner.hash, winner.fileIndex);
-  res.json({ found: true, id: dl.id, hash: winner.hash, name: winner.name, peers: winner.peers, error: dl.error });
+  const s = srcs[0]; const dl = download.createDownload(s.hash, s.fileIndex || 0);
+  res.json({ found: true, id: dl.id, hash: s.hash, cached: false, error: dl.error });
 });
 
 app.get('/api/stream/check/:infoHash', async (req, res) => {

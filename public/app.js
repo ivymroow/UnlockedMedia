@@ -79,9 +79,9 @@ function goBack(){if(state.prevState){state.view=state.prevState.view;state.data
 function toggleSettings(){
   const m=qs('#settings-modal');const s=m.style.display!=='flex'
   m.style.display=s?'flex':'none'
-  if(s){qs('#settingsBackendInput').value=backendUrl;const acct=qs('#settingsAccount');if(acct)acct.innerHTML=state.user?`<label>Account</label><p style="font-size:14px;color:var(--text);margin-top:4px">${esc(state.user.username||state.user.email)}</p><button class="auth-btn" style="margin-top:8px" onclick="signOut();toggleSettings()">Sign Out</button>`:'<label>Account</label><p class="hint" style="margin-top:4px">Not signed in. <a href="#" onclick="showAuth();toggleSettings();return false">Sign in</a> to save progress.</p>'}
+  if(s){qs('#settingsBackendInput').value=backendUrl;qs('#settingsRDKey').value=localStorage.getItem('um_rdkey')||'';const acct=qs('#settingsAccount');if(acct)acct.innerHTML=state.user?`<label>Account</label><p style="font-size:14px;color:var(--text);margin-top:4px">${esc(state.user.username||state.user.email)}</p><button class="auth-btn" style="margin-top:8px" onclick="signOut();toggleSettings()">Sign Out</button>`:'<label>Account</label><p class="hint" style="margin-top:4px">Not signed in. <a href="#" onclick="showAuth();toggleSettings();return false">Sign in</a> to save progress.</p>'}
 }
-function saveSettingsBackend(){const b=qs('#settingsBackendInput')?.value.trim()||'';if(b){localStorage.setItem('um_backend',b);backendUrl=b}qs('#settings-modal').style.display='none';location.reload()}
+function saveSettingsBackend(){const b=qs('#settingsBackendInput')?.value.trim()||'',rd=qs('#settingsRDKey')?.value.trim()||'';if(b){localStorage.setItem('um_backend',b);backendUrl=b}if(rd){localStorage.setItem('um_rdkey',rd);fetch(`${backendUrl||''}/api/debrid/key`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:rd})}).catch(()=>{})}qs('#settings-modal').style.display='none';location.reload()}
 async function render(){renderUserSection();const m=qs('#main');try{if(state.view==='home'){m.innerHTML=H();L()}else if(state.view==='search'){m.innerHTML=S();LS()}else if(state.view==='detail'){m.innerHTML=D();LD()}else if(state.view==='profile'){m.innerHTML=PR();PL()}}catch(e){m.innerHTML=E(e.message)}}
 
 function renderUserSection(){
@@ -191,9 +191,9 @@ async function playBest(){
     if(!race.found){perr('No viable source found');return}
     if(race.error){perr(race.error);return}
     if(pl)pl.textContent='Buffering...'
-    const doneBlob=await pollDownload(race.id,ps,pl,race.hash)
-    if(!doneBlob)return
-    finishPlayer(doneBlob,race.hash)
+    const result=await pollDownload(race.id,ps,pl,race.hash)
+    if(!result)return
+    finishPlayer(result.blob,race.hash,result.dlId)
   }catch(e){perr(e.message)}
 }
 
@@ -202,9 +202,9 @@ async function playSource(hash,fi,title){
   state.view='player';document.title=`${title} · SFlix`;qs('#app').innerHTML=playerHTML(title)
   const ps=qs('#ps'),pl=qs('#plText');if(pl)pl.textContent='Connecting...';if(ps)ps.textContent=''
   try{
-    const doneBlob=await pollDownload(null,ps,pl,hash,fi)
-    if(!doneBlob)return
-    finishPlayer(doneBlob,hash)
+    const result=await pollDownload(null,ps,pl,hash,fi)
+    if(!result)return
+    finishPlayer(result.blob,hash,result.dlId)
   }catch(e){perr(e.message)}
 }
 
@@ -225,7 +225,10 @@ async function pollDownload(downloadId,ps,pl,hash,fi){
         if(st.transcoding){if(pl)pl.textContent='Processing audio...';if(ps)ps.textContent='';return}
         if(st.done){
           clearInterval(iv);if(pl)pl.textContent='Loading subtitles...';if(ps)ps.textContent=''
-          try{const fr=await fetch(`${base}/api/download/${dlId}/file`);const blob=await fr.blob();resolve(blob)}catch(e){perr('Failed: '+e.message);resolve(null)}
+          try{
+            const fr=await fetch(`${base}/api/download/${dlId}/file`);const blob=await fr.blob()
+            resolve({blob,dlId,infoHash:hash||''})
+          }catch(e){perr('Failed: '+e.message);resolve(null)}
           return
         }
         const pct=Math.round((st.progress||0)*100),speed=st.speed?`${(st.speed/1e6).toFixed(1)} MB/s`:''
@@ -236,13 +239,27 @@ async function pollDownload(downloadId,ps,pl,hash,fi){
   })
 }
 
-function finishPlayer(blob,infoHash){
+async function finishPlayer(blob,infoHash,dlId){
   const video=qs('#player'),pl=qs('#pl'),plText=qs('#plText')
+  if(plText)plText.textContent='Loading subtitles...'
+  const base=state.backendUrl||''
+
+  if(dlId){
+    try{
+      const sr=await fetch(`${base}/api/download/${dlId}/subtitles`)
+      if(sr.ok){
+        const vtt=await sr.text()
+        const sb=new Blob([vtt],{type:'text/vtt'}),url=URL.createObjectURL(sb),tr=document.createElement('track')
+        tr.kind='captions';tr.label='English';tr.srclang='en';tr.src=url;tr.id='preloadedSub'
+        video.appendChild(tr);for(let i=0;i<video.textTracks.length;i++)video.textTracks[i].mode=i===video.textTracks.length-1?'showing':'hidden'
+      }
+    }catch{}
+  }
+
   if(plText)plText.textContent='Starting...'
   pl.style.display='none';video.style.display='block'
   video.muted=false;video.volume=1
   video.src=URL.createObjectURL(blob)
-  const base=state.backendUrl||''
   initCustomPlayer(video,base,infoHash)
   if(video._enableSeek)video._enableSeek()
 }
@@ -268,7 +285,7 @@ function initCustomPlayer(video,baseUrl,infoHash){
   const volSvg=volBtn.querySelector('svg');volSlider.addEventListener('input',()=>{const v=parseFloat(volSlider.value);video.volume=v;video.muted=(v===0);uI()});volBtn.onclick=()=>{video.muted=!video.muted;if(!video.muted)volSlider.value=video.volume;uI()};video.onvolumechange=()=>{volSlider.value=video.muted?0:video.volume;uI()}
   function uI(){if(!volSvg)return;if(video.muted||video.volume===0)volSvg.innerHTML='<path d="M3 9v6h4l5 5V4L7 9H3zm13 0l-1.5 1.5L16 12l-1.5 1.5L16 15l1.5-1.5L19 12l1.5 1.5L22 12l-1.5-1.5L22 9l-1.5 1.5L19 9l-1.5 1.5L16 9z"/>';else if(video.volume<0.5)volSvg.innerHTML='<path d="M3 9v6h4l5 5V4L7 9H3zm13 1.5L14.5 12l1.5 1.5V10.5z"/>';else volSvg.innerHTML='<path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>'}
   fs.onclick=()=>{if(document.fullscreenElement)document.exitFullscreen();else document.body.requestFullscreen()}
-  let cc=false;if(ccBtn&&infoHash){ccBtn.onclick=async()=>{if(cc){const trs=video.querySelectorAll('track');trs.forEach(t=>t.remove());ccBtn.style.opacity='.5';cc=false;return}ccBtn.style.opacity='1';try{const base=state.backendUrl||'',lr=await fetch(`${base}/api/subtitles/${infoHash}/list`),ld=await lr.json();if(!ld.tracks?.length){ccBtn.style.opacity='.5';return}const sr=await fetch(`${base}/api/subtitles/${infoHash}/0`),vtt=await sr.text(),blob=new Blob([vtt],{type:'text/vtt'}),url=URL.createObjectURL(blob),tr=document.createElement('track');tr.kind='captions';tr.label=ld.tracks[0].name||'English';tr.srclang='en';tr.src=url;video.appendChild(tr);for(let i=0;i<video.textTracks.length;i++)video.textTracks[i].mode=i===video.textTracks.length-1?'showing':'hidden';cc=true}catch{ccBtn.style.opacity='.5'}}}
+  let cc=false;if(ccBtn){ccBtn.onclick=()=>{cc=!cc;ccBtn.style.opacity=cc?'1':'.5';for(let i=0;i<video.textTracks.length;i++)video.textTracks[i].mode=cc?(i===video.textTracks.length-1?'showing':'hidden'):'hidden'}}
   document.addEventListener('click',()=>{if(video.paused)video.play().catch(()=>{})},{once:true})
 }
 
@@ -309,7 +326,9 @@ async function addToWatchlistFromProfile(id,title,poster,type){try{await api('PO
 function restoreFromHash(){const hash=window.location.hash.slice(1);if(!hash||hash==='/'||hash===''){state.view='home';return};if(hash==='profile'){state.view='profile';return};const params=new URLSearchParams(hash);if(params.has('q')){state.query=params.get('q');state.view='search'}else if(params.has('id')){state.view='detail';const se=parseInt(params.get('s')),ep=parseInt(params.get('e'));if(se&&ep){selectedSeason=se;selectedEpisode=ep};state.data={id:params.get('id'),type:params.get('type')||'movie',title:params.get('t')||'',year:params.get('y')||'',season:se||null,episode:ep||null}}else state.view='home'}
 
 async function init(){
-  try{if(token&&refreshToken&&!state.user){const refreshed=await tryRefreshSession();if(refreshed){try{const u=await api('GET','/api/auth/user');state.user=u}catch{}}};if(!state.user&&token){try{const u=await api('GET','/api/auth/user');state.user=u}catch{localStorage.removeItem('um_token');token=''}};await detect();const badge=qs('#modeBadge');if(badge){badge.textContent='[WIP]';badge.className='mode-badge';badge.style.display='inline-block'};if(state.mode==='standalone'&&!navigator.onLine){qs('#setup').style.display='flex';return};qs('#setup').style.display='none';restoreFromHash();if(state.view==='search'&&state.query)qs('#searchInput').value=state.query;render()}catch(e){console.error('Init error:',e);const main=qs('#main');if(main)main.innerHTML='<div class="error-view"><h2>Failed to load</h2><p>'+esc(e.message||'Unknown error')+'</p><button class="play-btn" onclick="location.reload()">Retry</button></div>'}
+  try{
+    const rd=localStorage.getItem('um_rdkey');if(rd){fetch('/api/debrid/key',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:rd})}).catch(()=>{})}
+    if(token&&refreshToken&&!state.user){const refreshed=await tryRefreshSession();if(refreshed){try{const u=await api('GET','/api/auth/user');state.user=u}catch{}}};if(!state.user&&token){try{const u=await api('GET','/api/auth/user');state.user=u}catch{localStorage.removeItem('um_token');token=''}};await detect();const badge=qs('#modeBadge');if(badge){badge.textContent='[WIP]';badge.className='mode-badge';badge.style.display='inline-block'};if(state.mode==='standalone'&&!navigator.onLine){qs('#setup').style.display='flex';return};qs('#setup').style.display='none';restoreFromHash();if(state.view==='search'&&state.query)qs('#searchInput').value=state.query;render()}catch(e){console.error('Init error:',e);const main=qs('#main');if(main)main.innerHTML='<div class="error-view"><h2>Failed to load</h2><p>'+esc(e.message||'Unknown error')+'</p><button class="play-btn" onclick="location.reload()">Retry</button></div>'}
 }
 
 let searchTimer;qs('#searchInput').addEventListener('input',function(){clearTimeout(searchTimer);const q=this.value.trim();if(!q){navigate('home');return};searchTimer=setTimeout(()=>{state.query=q;navigate('search')},300)});qs('#searchInput').addEventListener('keydown',function(e){if(e.key==='Enter'){clearTimeout(searchTimer);const q=this.value.trim();if(q){state.query=q;navigate('search')}}});init();
