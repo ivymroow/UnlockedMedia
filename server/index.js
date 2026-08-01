@@ -143,25 +143,7 @@ app.get('/api/download/:id/status', (req, res) => {
 });
 
 app.get('/api/download/:id/file', (req, res) => {
-  const result = download.getFile(req.params.id);
-  if (!result) return res.status(404).json({ error: 'Not ready yet' });
-  if (result.r2) return res.redirect(302, result.url);
-  const fs = require('fs');
-  const stat = fs.statSync(result.url);
-  res.writeHead(200, {
-    'Content-Type': 'video/mp4',
-    'Content-Length': stat.size,
-    'Accept-Ranges': 'bytes',
-  });
-  fs.createReadStream(result.url).pipe(res);
-  setTimeout(() => download.cleanup(req.params.id), 120000);
-});
-
-app.get('/api/download/:id/subtitles', (req, res) => {
-  const vtt = download.getSubtitles(req.params.id);
-  if (!vtt) return res.status(404).json({ error: 'No subtitles' });
-  res.set('Content-Type', 'text/vtt; charset=utf-8');
-  res.send(vtt);
+  res.status(410).json({ error: 'Use /api/stream/:hash instead' });
 });
 
 app.post('/api/race', express.json(), async (req, res) => {

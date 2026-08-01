@@ -191,9 +191,7 @@ async function playBest(){
     if(!race.found){perr('No viable source found');return}
     if(race.error){perr(race.error);return}
     if(pl)pl.textContent='Buffering...'
-    const result=await pollDownload(race.id,ps,pl,race.hash)
-    if(!result)return
-    finishPlayer(result.blob,race.hash,result.dlId)
+    streamAndPlay(race.hash,0,race.id,ps,pl)
   }catch(e){perr(e.message)}
 }
 
@@ -201,42 +199,54 @@ async function playSource(hash,fi,title){
   if(state.mode!=='backend'){alert('Backend required');return}
   state.view='player';document.title=`${title} · web-streaming`;qs('#app').innerHTML=playerHTML(title)
   const ps=qs('#ps'),pl=qs('#plText');if(pl)pl.textContent='Connecting...';if(ps)ps.textContent=''
-  try{
-    const result=await pollDownload(null,ps,pl,hash,fi)
-    if(!result)return
-    finishPlayer(result.blob,hash,result.dlId)
-  }catch(e){perr(e.message)}
+  streamAndPlay(hash,fi||0,null,ps,pl)
 }
 
-async function pollDownload(downloadId,ps,pl,hash,fi){
+async function streamAndPlay(hash,fi,dlId,ps,pl){
   const base=state.backendUrl||''
-  let dlId=downloadId
-  if(!dlId){
-    const r=await fetch(`${base}/api/download`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({hash,fileIndex:fi||0})})
-    const dl=await r.json()
-    if(dl.error){perr(dl.error);return null}
-    dlId=dl.id
-  }
-  return new Promise(resolve=>{
-    const iv=setInterval(async()=>{
-      try{
-        const sr=await fetch(`${base}/api/download/${dlId}/status`);const st=await sr.json()
-        if(!st||st.error){clearInterval(iv);if(st?.error)perr(st.error);resolve(null);return}
-        if(st.transcoding){if(pl)pl.textContent='Processing audio...';if(ps)ps.textContent='';return}
-        if(st.done){
-          clearInterval(iv);if(pl)pl.textContent='Loading subtitles...';if(ps)ps.textContent=''
-          try{
-            const fr=await fetch(`${base}/api/download/${dlId}/file`);const blob=await fr.blob()
-            resolve({blob,dlId,infoHash:hash||''})
-          }catch(e){perr('Failed: '+e.message);resolve(null)}
-          return
-        }
-        const pct=Math.round((st.progress||0)*100),speed=st.speed?`${(st.speed/1e6).toFixed(1)} MB/s`:''
-        if(pl)pl.textContent='Buffering...';if(ps)ps.textContent=`${pct}%${speed?' · '+speed:''}`
-      }catch{clearInterval(iv);resolve(null)}
+  const infoHash=hash
+
+  // Start progress polling if we have a download ID
+  let pollIv=null
+  if(dlId){
+    pollIv=setInterval(async()=>{
+      try{const r=await fetch(`${base}/api/download/${dlId}/status`);const st=await r.json();if(!st||st.error)return;const pct=Math.round((st.progress||0)*100),speed=st.speed?`${(st.speed/1e6).toFixed(1)} MB/s`:'';if(pl)pl.textContent='Buffering...';if(ps)ps.textContent=`${pct}%${speed?' · '+speed:''}`}catch{}
     },1000)
-    setTimeout(()=>{clearInterval(iv);resolve(null)},480000)
-  })
+  }
+
+  try{
+    const r=await fetch(`${base}/api/stream/${hash}?fileIndex=${fi}`)
+    if(!r.ok){if(pollIv)clearInterval(pollIv);perr('Stream failed');return}
+    const reader=r.body.getReader()
+    const chunks=[],startTime=Date.now();let received=0
+    while(true){
+      const{done,value}=await reader.read()
+      if(done)break
+      chunks.push(value);received+=value.length
+      if(!dlId){
+        const elapsed=(Date.now()-startTime)/1000,speed=elapsed>0?`${(received/elapsed/1e6).toFixed(1)} MB/s`:''
+        if(pl)pl.textContent='Buffering...';if(ps)ps.textContent=`${(received/1e6).toFixed(0)} MB${speed?' · '+speed:''}`
+      }
+    }
+    if(pollIv)clearInterval(pollIv)
+    if(pl)pl.textContent='Starting...';if(ps)ps.textContent=''
+    const blob=new Blob(chunks,{type:'video/mp4'}),video=qs('#player')
+    qs('#pl').style.display='none';video.style.display='block'
+    video.muted=false;video.volume=1
+    video.src=URL.createObjectURL(blob)
+    initCustomPlayer(video,base,infoHash)
+    if(video._enableSeek)video._enableSeek()
+    // Try subtitles
+    try{
+      const sr=await fetch(`${base}/api/subtitles/${infoHash}/list`),sd=await sr.json()
+      if(sd.tracks?.length){
+        const vr=await fetch(`${base}/api/subtitles/${infoHash}/0`),vtt=await vr.text()
+        const sb=new Blob([vtt],{type:'text/vtt'}),url=URL.createObjectURL(sb),tr=document.createElement('track')
+        tr.kind='captions';tr.label=sd.tracks[0].name||'English';tr.srclang='en';tr.src=url;tr.id='preSub'
+        video.appendChild(tr);for(let i=0;i<video.textTracks.length;i++)video.textTracks[i].mode=i===video.textTracks.length-1?'showing':'hidden'
+      }
+    }catch{}
+  }catch(e){if(pollIv)clearInterval(pollIv);perr(e.message)}
 }
 
 async function finishPlayer(blob,infoHash,dlId){
