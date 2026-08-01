@@ -8,7 +8,7 @@ const fs = require('fs');
 const MemStore = require('s-store');
 
 const client = new StreamEngine({
-  maxConns: 30,
+  maxConns: 50,
   dht: false,
   tracker: true,
   store: chunkLength => new MemStore(chunkLength),
@@ -16,6 +16,9 @@ const client = new StreamEngine({
 
 const _d = (s) => Buffer.from(s, 'base64').toString('utf8');
 const ANNOUNCERS = [
+  _d('aHR0cDovL3RyYWNrZXIub3BlbmJpdHRvcnJlbnQuY29tOjgwL2Fubm91bmNl'),
+  _d('aHR0cDovL3RyYWNrZXIyLml0em14LmNvbTo2OTYxL2Fubm91bmNl'),
+  _d('aHR0cDovL29wZW4uYWNnY250cmFja2VyLmNvbTo4MC9hbm5vdW5jZQ=='),
   _d('dWRwOi8vdHJhY2tlci5vcGVudHJhY2tyLm9yZzoxMzM3L2Fubm91bmNl'),
   _d('dWRwOi8vdHJhY2tlci5jb3BwZXJzdXJmZXIudGs6Njk2OS9hbm5vdW5jZQ=='),
   _d('dWRwOi8vdHJhY2tlci5sZWVjaGVycy1wYXJhZGlzZS5vcmc6Njk2OS9hbm5vdW5jZQ=='),

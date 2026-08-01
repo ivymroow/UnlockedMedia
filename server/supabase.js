@@ -23,6 +23,7 @@ async function signUp(username, password, email) {
   return {
     user: { id: login.data.user.id, username, email: userEmail },
     token: login.data.session.access_token,
+    refresh: login.data.session.refresh_token,
   };
 }
 
@@ -38,6 +39,7 @@ async function signIn(username, password) {
   return {
     user: { id: data.user.id, username: data.user.user_metadata?.username || username, email: data.user.email },
     token: data.session.access_token,
+    refresh: data.session.refresh_token,
   };
 }
 
@@ -107,8 +109,17 @@ async function isInWatchlist(userId, itemId) {
   return !!data;
 }
 
+async function refreshSession(refreshToken) {
+  const { data, error } = await sb.auth.refreshSession({ refresh_token: refreshToken });
+  if (error) throw new Error(error.message);
+  return {
+    token: data.session.access_token,
+    refresh: data.session.refresh_token,
+  };
+}
+
 module.exports = {
-  signUp, signIn, getUserFromToken,
+  signUp, signIn, getUserFromToken, refreshSession,
   saveProgress, getProgress, listProgress,
   addToWatchlist, removeFromWatchlist, getWatchlist, isInWatchlist,
   sb,

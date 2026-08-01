@@ -154,6 +154,48 @@ app.get('/api/download/:id/file', (req, res) => {
   setTimeout(() => download.cleanup(req.params.id), 60000);
 });
 
+app.post('/api/race', express.json(), async (req, res) => {
+  const { sources } = req.body;
+  if (!sources?.length) return res.status(400).json({ error: 'Sources required' });
+
+  const candidates = sources.slice(0, 5);
+  let winner = null;
+
+  try {
+    const checkPromises = candidates.map((s, i) => new Promise((resolve, reject) => {
+      (async () => {
+        try {
+          const link = media.makeLink(s.hash, 'race');
+          const tor = media.getOrStart(link);
+          await media.waitForData(tor, 10000);
+          if (tor.numPeers > 0 || tor.downloadSpeed > 0 || tor.progress > 0) {
+            resolve({ tor, index: i, hash: s.hash, fileIndex: s.fileIndex || 0, peers: tor.numPeers, speed: tor.downloadSpeed, name: tor.name });
+            return;
+          }
+          await Promise.race([
+            new Promise(r => { tor.once('wire', r); tor.once('download', r); }),
+            new Promise((_, rj) => setTimeout(rj, 5000)),
+          ]);
+          if (tor.numPeers > 0 || tor.downloadSpeed > 0) {
+            resolve({ tor, index: i, hash: s.hash, fileIndex: s.fileIndex || 0, peers: tor.numPeers, speed: tor.downloadSpeed, name: tor.name });
+          } else {
+            reject(new Error('No peers'));
+          }
+        } catch (e) { reject(e); }
+      })();
+    }));
+
+    winner = await Promise.any(checkPromises);
+  } catch (e) {
+    return res.status(404).json({ error: 'No viable source found' });
+  }
+
+  if (!winner) return res.status(404).json({ error: 'No viable source found' });
+
+  const dl = download.createDownload(winner.hash, winner.fileIndex);
+  res.json({ found: true, id: dl.id, hash: winner.hash, name: winner.name, peers: winner.peers, error: dl.error });
+});
+
 app.get('/api/stream/check/:infoHash', async (req, res) => {
   const { infoHash } = req.params;
   const link = media.makeLink(infoHash, 'stream');
@@ -260,15 +302,24 @@ async function requireUser(req, res) {
 app.post('/api/auth/signup', express.json(), async (req, res) => {
   try {
     const result = await supabase.signUp(req.body.username, req.body.password, req.body.email);
-    res.json({ ok: true, user: result.user, token: result.token });
+    res.json({ ok: true, user: result.user, token: result.token, refresh: result.refresh });
   } catch (e) { res.status(400).json({ error: e.message }); }
 });
 
 app.post('/api/auth/signin', express.json(), async (req, res) => {
   try {
     const result = await supabase.signIn(req.body.username, req.body.password);
-    res.json({ ok: true, user: result.user, token: result.token });
+    res.json({ ok: true, user: result.user, token: result.token, refresh: result.refresh });
   } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+app.post('/api/auth/refresh', express.json(), async (req, res) => {
+  try {
+    const { refresh } = req.body;
+    if (!refresh) return res.status(400).json({ error: 'Refresh token required' });
+    const result = await supabase.refreshSession(refresh);
+    res.json({ ok: true, token: result.token, refresh: result.refresh });
+  } catch (e) { res.status(401).json({ error: e.message }); }
 });
 
 app.get('/api/auth/user', async (req, res) => {
@@ -326,6 +377,37 @@ app.get('/api/watchlist/check', async (req, res) => {
   if (!user) return;
   try { const found = await supabase.isInWatchlist(user.id, req.query.id); res.json({ inList: found }); }
   catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+app.get('/api/subtitles/:infoHash/list', async (req, res) => {
+  const { infoHash } = req.params;
+  try {
+    const link = media.makeLink(infoHash, 'subtitles');
+    const tor = media.getOrStart(link);
+    await media.waitForData(tor, 15000);
+    const subExts = ['.srt', '.vtt', '.sub', '.ass', '.ssa'];
+    const subFiles = (tor.files || []).filter(f => subExts.some(e => (f.name || '').toLowerCase().endsWith(e)));
+    res.json({ tracks: subFiles.map(f => ({ name: f.name, length: f.length })) });
+  } catch (e) { res.json({ tracks: [] }); }
+});
+
+app.get('/api/subtitles/:infoHash/:index', async (req, res) => {
+  const { infoHash, index } = req.params;
+  try {
+    const link = media.makeLink(infoHash, 'subtitles');
+    const tor = media.getOrStart(link);
+    await media.waitForData(tor, 15000);
+    const subExts = ['.srt', '.vtt', '.sub', '.ass', '.ssa'];
+    const subFiles = (tor.files || []).filter(f => subExts.some(e => (f.name || '').toLowerCase().endsWith(e)));
+    const file = subFiles[parseInt(index)];
+    if (!file) return res.status(404).json({ error: 'Not found' });
+    const chunks = [];
+    const ws = file.createReadStream();
+    for await (const chunk of ws) chunks.push(chunk);
+    let text = Buffer.concat(chunks).toString('utf8');
+    if (text.startsWith('WEBVTT')) { res.set('Content-Type', 'text/vtt; charset=utf-8'); res.send(text); }
+    else { res.set('Content-Type', 'text/vtt; charset=utf-8'); res.send('WEBVTT\n\n' + text.replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2')); }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.get('*', (req, res) => {

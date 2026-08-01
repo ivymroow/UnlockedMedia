@@ -6,7 +6,7 @@ const downloads = new Map();
 
 function createDownload(infoHash, fileIndex) {
   const id = crypto.randomBytes(8).toString('hex');
-  const entry = { id, infoHash, fileIndex, progress: 0, speed: 0, peers: 0, done: false, error: null, buffer: null, startTime: Date.now() };
+  const entry = { id, infoHash, fileIndex, progress: 0, speed: 0, peers: 0, done: false, transcoding: false, error: null, buffer: null, startTime: Date.now() };
   downloads.set(id, entry);
 
   const link = stream.makeLink(infoHash, 'download');
@@ -18,7 +18,7 @@ function createDownload(infoHash, fileIndex) {
     return entry;
   }
 
-  stream.waitForData(tor, 40000).then(() => {
+  stream.waitForData(tor, 15000).then(() => {
     const file = tor.files?.[fileIndex] || stream.getVideo(tor);
     if (!file) {
       entry.error = 'No video file found';
@@ -33,15 +33,15 @@ function createDownload(infoHash, fileIndex) {
         clearInterval(interval);
         finalizeDownload(entry, file, tor);
       }
-    }, 1000);
+    }, 800);
 
     setTimeout(() => {
       clearInterval(interval);
       if (!entry.done && !entry.error) {
-        entry.error = 'Download timeout (10 min)';
+        entry.error = 'Download timeout';
         try { tor.destroy(); } catch {}
       }
-    }, 600000);
+    }, 480000);
   }).catch(e => {
     entry.error = e.message;
   });
@@ -57,15 +57,14 @@ async function finalizeDownload(entry, file, tor) {
     const rawBuf = Buffer.concat(chunks);
     try { tor.destroy(); } catch {}
 
-    if (transcodeBuffer) {
-      entry.buffer = await transcodeBuffer(rawBuf);
-    } else {
-      entry.buffer = rawBuf;
-    }
+    entry.transcoding = true;
+    entry.buffer = transcodeBuffer ? await transcodeBuffer(rawBuf) : rawBuf;
+    entry.transcoding = false;
     entry.done = true;
     entry.progress = 1;
   } catch (e) {
     entry.error = e.message;
+    entry.transcoding = false;
   }
 }
 
@@ -74,8 +73,8 @@ function getStatus(id) {
   if (!entry) return null;
   return {
     id: entry.id, progress: entry.progress, speed: entry.speed,
-    peers: entry.peers, done: entry.done, error: entry.error,
-    elapsed: Date.now() - entry.startTime,
+    peers: entry.peers, done: entry.done, transcoding: entry.transcoding,
+    error: entry.error, elapsed: Date.now() - entry.startTime,
   };
 }
 
