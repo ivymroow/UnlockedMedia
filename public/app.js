@@ -125,7 +125,7 @@ async function loadEpisodeSources(id,season,episode){
   const q=`S${String(season).padStart(2,'0')}E${String(episode).padStart(2,'0')}`
   let srcs=null
   try{srcs=await api('GET',`/api/show/${id}/sources?title=${encodeURIComponent(title)}&year=${year}&type=tv&season=${season}&episode=${episode}&_=${Date.now()}`)}catch{}
-  if(!srcs||!srcs.length){try{const r=await fetch(`https://${atob('dG9ycmVudGlvLnN0cmVtLmZ1bg==')}/stream/series/${id}:${season}:${episode}.json`);const d=await r.json();if(d?.streams)srcs=d.streams.map(x=>{const t=x.title||'',seedM=t.match(/👤\s*(\d+)/),sizeM=t.match(/💾\s*([\d.]+)\s*(GB|MB)/);return{provider:'TSX',quality:t.includes('4K')?'4K':t.includes('1080')?'1080p':t.includes('720')?'720p':'Unknown',size:sizeM?sizeM[1]+' '+sizeM[2]:'',seeds:seedM?parseInt(seedM[1]):0,peers:0,hash:x.infoHash,fileIndex:x.fileIdx||0}})})}catch{}}
+  if(!srcs||!srcs.length){try{const r=await fetch(`https://${atob('dG9ycmVudGlvLnN0cmVtLmZ1bg==')}/stream/series/${id}:${season}:${episode}.json`);const d=await r.json();if(d?.streams)srcs=d.streams.map(x=>{const t=x.title||'',seedM=t.match(/👤\s*(\d+)/),sizeM=t.match(/💾\s*([\d.]+)\s*(GB|MB)/);return{provider:'TSX',quality:t.includes('4K')?'4K':t.includes('1080')?'1080p':t.includes('720')?'720p':'Unknown',size:sizeM?sizeM[1]+' '+sizeM[2]:'',seeds:seedM?parseInt(seedM[1]):0,peers:0,hash:x.infoHash,fileIndex:x.fileIdx||0}})}catch{}}
   if(!srcs||!srcs.length){list.innerHTML=`<p style="color:var(--text3);font-size:14px;padding:8px 0">No sources for ${title} ${q}.</p>`;return}
   srcs.sort((a,b)=>(b.seeds||0)-(a.seeds||0))
   state._sources=srcs
