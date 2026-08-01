@@ -123,20 +123,40 @@ function transcodeFile(inputPath, outputPath) {
   const { spawn } = require('child_process');
   return new Promise((resolve, reject) => {
     const ff = spawn(FFMPEG, [
-      '-i', inputPath,
-      '-c:v', 'copy',
-      '-c:a', 'aac',
-      '-b:a', '128k',
-      '-ac', '2',
-      '-f', 'mp4',
-      '-movflags', 'frag_keyframe+empty_moov',
-      '-preset', 'ultrafast',
-      '-loglevel', 'error',
-      outputPath,
+      '-i', inputPath, '-c:v', 'copy', '-c:a', 'aac', '-b:a', '128k', '-ac', '2',
+      '-f', 'mp4', '-movflags', 'frag_keyframe+empty_moov',
+      '-preset', 'ultrafast', '-loglevel', 'error', outputPath,
     ]);
     ff.on('close', code => code === 0 ? resolve() : reject(new Error('FFmpeg exit ' + code)));
     ff.on('error', e => reject(e));
   });
 }
 
-module.exports = { transcodeStream, transcodeBuffer, transcodeFile, hasFfmpeg: !!FFMPEG };
+function transcodeStreamToFile(inputStream, outputPath) {
+  if (!FFMPEG) {
+    const fs = require('fs');
+    const ws = fs.createWriteStream(outputPath);
+    inputStream.pipe(ws);
+    return new Promise((resolve, reject) => { ws.on('finish', resolve); ws.on('error', reject); });
+  }
+  const { spawn } = require('child_process');
+  const fs = require('fs');
+  return new Promise((resolve, reject) => {
+    const out = fs.createWriteStream(outputPath);
+    const ff = spawn(FFMPEG, [
+      '-i', 'pipe:0', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '128k', '-ac', '2',
+      '-f', 'mp4', '-movflags', 'frag_keyframe+empty_moov',
+      '-preset', 'ultrafast', '-loglevel', 'error', 'pipe:1',
+    ], { stdio: ['pipe', 'pipe', 'pipe'] });
+    ff.stdout.pipe(out);
+    ff.stderr.on('data', () => {});
+    inputStream.pipe(ff.stdin);
+    ff.stdin.on('error', () => {});
+    out.on('finish', resolve);
+    out.on('error', reject);
+    ff.on('error', e => reject(e));
+    ff.on('close', code => { if (code !== 0) reject(new Error('FFmpeg exit ' + code)); });
+  });
+}
+
+module.exports = { transcodeStream, transcodeBuffer, transcodeFile, transcodeStreamToFile, hasFfmpeg: !!FFMPEG };

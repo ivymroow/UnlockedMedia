@@ -1,4 +1,4 @@
-const { transcodeFile, hasFfmpeg } = require('./transcode');
+const { transcodeStreamToFile, hasFfmpeg } = require('./transcode');
 const media = require('./media-finder');
 const crypto = require('crypto');
 const fs = require('fs');
@@ -7,6 +7,16 @@ const path = require('path');
 
 const downloads = new Map();
 const TMP = process.env.TMPDIR || os.tmpdir();
+
+// Startup cleanup
+try {
+  const files = fs.readdirSync(TMP);
+  for (const f of files) {
+    if (f.startsWith('ws-') && (f.endsWith('.mp4') || f.endsWith('.raw'))) {
+      try { fs.unlinkSync(path.join(TMP, f)); } catch {}
+    }
+  }
+} catch {}
 
 function createDownload(infoHash, fileIndex) {
   const id = crypto.randomBytes(8).toString('hex');
@@ -26,7 +36,7 @@ function createDownload(infoHash, fileIndex) {
       entry.speed = tor.downloadSpeed;
       if (tor.progress >= 1 || tor.done) {
         clearInterval(interval);
-        finalizeDownload(entry, file, tor);
+        processFile(entry, file, tor);
       }
     }, 800);
 
@@ -39,16 +49,14 @@ function createDownload(infoHash, fileIndex) {
   return entry;
 }
 
-async function finalizeDownload(entry, file, tor) {
+async function processFile(entry, file, tor) {
   try {
-    // Write raw file to disk
-    const rawPath = path.join(TMP, `${entry.id}.raw`);
-    const writeStream = fs.createWriteStream(rawPath);
-    file.createReadStream().pipe(writeStream);
-    await new Promise((resolve, reject) => { writeStream.on('finish', resolve); writeStream.on('error', reject); });
+    const outPath = path.join(TMP, `ws-${entry.id}.mp4`);
+    entry.transcoding = true;
+    await transcodeStreamToFile(file.createReadStream(), outPath);
     try { tor.destroy(); } catch {}
 
-    // Extract subtitles if present
+    // Extract subtitles
     const subFiles = (tor.files || []).filter(f => ['.srt', '.vtt', '.sub', '.ass', '.ssa'].some(e => (f.name || '').toLowerCase().endsWith(e)));
     if (subFiles.length) {
       try {
@@ -58,20 +66,14 @@ async function finalizeDownload(entry, file, tor) {
       } catch {}
     }
 
-    // Transcode to disk (streaming, no memory buffer)
-    entry.transcoding = true;
-    const outPath = path.join(TMP, `${entry.id}.mp4`);
-    if (hasFfmpeg) {
-      await transcodeFile(rawPath, outPath);
-      try { fs.unlinkSync(rawPath); } catch {}
-    } else {
-      fs.renameSync(rawPath, outPath);
-    }
     entry.transcoding = false;
     entry.filePath = outPath;
     entry.done = true;
     entry.progress = 1;
-  } catch (e) { entry.error = e.message; entry.transcoding = false; }
+  } catch (e) {
+    entry.error = e.message;
+    try { fs.unlinkSync(path.join(TMP, `ws-${entry.id}.mp4`)); } catch {}
+  }
 }
 
 function getStatus(id) {
