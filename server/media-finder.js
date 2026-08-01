@@ -5,13 +5,13 @@ const cache = require('./cache');
 const os = require('os');
 const path = require('path');
 const fs = require('fs');
-const MemStore = require('s-store');
+const DiskStore = require('./disk-store');
 
 const client = new StreamEngine({
   maxConns: 30,
   dht: false,
   tracker: true,
-  store: chunkLength => new MemStore(chunkLength),
+  store: chunkLength => new DiskStore(chunkLength),
 });
 
 const _d = (s) => Buffer.from(s, 'base64').toString('utf8');

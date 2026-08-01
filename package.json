@@ -12,7 +12,6 @@
     "axios": "^1.7.0",
     "cors": "^2.8.5",
     "express": "^4.21.0",
-    "s-engine": "file:vendor/s-engine.tgz",
-    "s-store": "file:vendor/s-store.tgz"
+    "s-engine": "file:vendor/s-engine.tgz"
   }
 }
