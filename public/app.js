@@ -1,4 +1,4 @@
-let state={view:'home',query:'',player:null,mode:'standalone',prevState:null,user:null,_title:'',_year:'',_poster:'',_savedSeason:null,_savedEpisode:null,_sources:null}
+let state={view:'welcome',query:'',player:null,mode:'standalone',prevState:null,user:null,_title:'',_year:'',_poster:'',_savedSeason:null,_savedEpisode:null,_sources:null}
 const cache=new Map()
 let backendUrl=localStorage.getItem('um_backend')||''
 let token=localStorage.getItem('um_token')||''
@@ -82,7 +82,7 @@ function toggleSettings(){
   if(s){qs('#settingsBackendInput').value=backendUrl;const acct=qs('#settingsAccount');if(acct)acct.innerHTML=state.user?`<label>Account</label><p style="font-size:14px;color:var(--text);margin-top:4px">${esc(state.user.username||state.user.email)}</p><button class="auth-btn" style="margin-top:8px" onclick="signOut();toggleSettings()">Sign Out</button>`:'<label>Account</label><p class="hint" style="margin-top:4px">Not signed in. <a href="#" onclick="showAuth();toggleSettings();return false">Sign in</a> to save progress.</p>'}
 }
 function saveSettingsBackend(){const b=qs('#settingsBackendInput')?.value.trim()||'';if(b){localStorage.setItem('um_backend',b);backendUrl=b}qs('#settings-modal').style.display='none';location.reload()}
-async function render(){renderUserSection();const m=qs('#main');try{if(state.view==='home'){m.innerHTML=H();L()}else if(state.view==='search'){m.innerHTML=S();LS()}else if(state.view==='detail'){m.innerHTML=D();LD()}else if(state.view==='profile'){m.innerHTML=PR();PL()}}catch(e){m.innerHTML=E(e.message)}}
+async function render(){renderUserSection();const m=qs('#main');try{if(state.view==='welcome'){m.innerHTML=W()}else if(state.view==='home'){m.innerHTML=H();L()}else if(state.view==='search'){m.innerHTML=S();LS()}else if(state.view==='detail'){m.innerHTML=D();LD()}else if(state.view==='profile'){m.innerHTML=PR();PL()}}catch(e){m.innerHTML=E(e.message)}}
 
 function renderUserSection(){
   const el=qs('#userSection')
@@ -135,7 +135,7 @@ async function loadEpisodeSources(id,season,episode){
 
 function RD(d,srces,episodes){
   const t=d.title||'Unknown',y=d.year||'',rt=d.runtime?`${Math.floor(d.runtime/60)}h ${d.runtime%60}m`:'',r=d.rating?d.rating.toFixed(1):'',o=d.overview||'No overview available.',g=d.genres||[],c=d.cast&&d.cast.length?d.cast.join(', '):'',isTv=episodes&&episodes.length>0
-  document.title=`${t} · SFlix`
+  document.title=`${t} · web-streaming`
   const posterUrl=d.poster||''
   let wlBtn=''
   if(token){wlBtn=`<button class="wl-btn" id="wlBtn" onclick="toggleWatchlist()">⏳ Loading...</button>`;setTimeout(async()=>{try{const r=await api('GET',`/api/watchlist/check?id=${d.id}`);const b=qs('#wlBtn');if(b){b.textContent=r.inList?'✓ In Watchlist':'+ Watchlist';b.className='wl-btn'+(r.inList?' in-list':'')}}catch{}},50)}
@@ -181,7 +181,7 @@ async function playBest(){
   const alive=state._sources.filter(s=>(s.seeds||0)>0||(s.peers||0)>0)
   if(!alive.length){alert('No viable sources');return}
   const title=state.data?._title||''
-  state.view='player';document.title=`${title} · SFlix`;qs('#app').innerHTML=playerHTML(title)
+  state.view='player';document.title=`${title} · web-streaming`;qs('#app').innerHTML=playerHTML(title)
   const ps=qs('#ps'),pl=qs('#plText');if(pl)pl.textContent='Finding source...';if(ps)ps.textContent='Testing '+alive.length+' sources'
 
   try{
@@ -199,7 +199,7 @@ async function playBest(){
 
 async function playSource(hash,fi,title){
   if(state.mode!=='backend'){alert('Backend required');return}
-  state.view='player';document.title=`${title} · SFlix`;qs('#app').innerHTML=playerHTML(title)
+  state.view='player';document.title=`${title} · web-streaming`;qs('#app').innerHTML=playerHTML(title)
   const ps=qs('#ps'),pl=qs('#plText');if(pl)pl.textContent='Connecting...';if(ps)ps.textContent=''
   try{
     const result=await pollDownload(null,ps,pl,hash,fi)
@@ -299,6 +299,9 @@ function G(id,items){
 }
 function E(m){return`<div class="error-view"><h2>Something went wrong</h2><p>${esc(m)}</p><button class="play-btn" onclick="location.reload()">Try Again</button></div>`}
 
+function W(){return`<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px"><div style="max-width:640px;text-align:center"><h1 style="font-size:32px;font-weight:800;margin-bottom:8px">web-streaming <span style="font-size:16px;color:var(--primary);font-weight:600">beta</span></h1><p style="color:var(--text2);font-size:14px;line-height:1.7;margin-bottom:24px">I am currently a solo dev with no money or servers or anything. I want to make a simple streaming site that:</p><ul style="list-style:none;padding:0;color:var(--text2);font-size:14px;line-height:2;margin-bottom:24px;text-align:left;max-width:400px;margin-left:auto;margin-right:auto"><li>✅ doesn't spam ads</li><li>✅ doesn't break half the time</li><li>✅ doesn't steal your info lmao</li><li>✅ has original UI and functionality</li></ul><p style="color:var(--text2);font-size:14px;line-height:1.7;margin-bottom:8px">Currently this depends on torrents and peers. I want to do direct streaming but I'm seriously broke and API keys cost monies man.</p><p style="color:var(--text3);font-size:12px;margin-bottom:24px"><a href="https://github.com/ivymroow/webstreaming/blob/main/notice.md" target="_blank" style="color:var(--primary)">View full project notice &amp; source →</a></p><button onclick="enterSite()" style="padding:14px 48px;background:var(--primary);color:#fff;border:none;border-radius:var(--radius);font-size:16px;font-weight:700;cursor:pointer">Enter</button></div></div>`}
+function enterSite(){state.view='home';navigate('home')}
+
 function showAuth(){qs('#auth-modal').style.display='flex'}
 function hideAuth(){qs('#auth-modal').style.display='none'}
 let authMode='signin'
@@ -313,7 +316,7 @@ function signOut(){localStorage.removeItem('um_token');localStorage.removeItem('
 function PR(){return`<div class="profile"><button class="detail-back" onclick="navigate('home')"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg> Back</button><h1>Profile</h1><div class="profile-search"><input type="text" id="psInput" class="profile-search-input" placeholder="Search movies & shows to add..." autocomplete="off"><div class="profile-search-drop" id="psDrop" style="display:none"></div></div><div class="profile-tabs"><button class="profile-tab active" data-tab="watching">Continue Watching</button><button class="profile-tab" data-tab="watchlist">Watchlist</button><button class="profile-tab" data-tab="watched">Watched</button><button class="profile-tab" data-tab="planned">Plan to Watch</button></div><div class="grid" id="profileGrid"></div><div class="loading-screen" id="pLd"><div class="spinner"></div><p>Loading...</p></div></div>`}
 async function PL(){
   if(!token){qs('#profileGrid').innerHTML='<p style="color:var(--text2);padding:40px;text-align:center">Sign in to manage your watchlist.</p>';qs('#pLd').style.display='none';return}
-  document.title='Profile · SFlix'
+  document.title='Profile · web-streaming'
   async function lt(tab){qs('#pLd').style.display='';qs('#profileGrid').innerHTML='';qs('#psDrop').style.display='none';const tabs=document.querySelectorAll('.profile-tab');tabs.forEach(t=>t.classList.toggle('active',t.dataset.tab===tab))
     try{let items=[];if(tab==='watchlist')items=await api('GET','/api/watchlist/list');else items=await api('GET',`/api/progress/list?status=${tab}`);G('profileGrid',items.map(i=>({id:i.item_id||i.id,title:i.title,poster:i.poster,year:null,type:i.type,progress:tab==='watching'&&i.watched&&i.duration?i.watched/i.duration:0})));if(!items.length)qs('#profileGrid').innerHTML='<p style="color:var(--text2);padding:40px;text-align:center;grid-column:1/-1">Nothing here yet.</p>'}catch(e){qs('#profileGrid').innerHTML=`<p style="color:#f87171;padding:40px;text-align:center">${esc(e.message)}</p>`}
     qs('#pLd').style.display='none'}

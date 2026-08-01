@@ -1,6 +1,6 @@
 const axios = require('axios');
 
-const http = axios.create({ timeout: 20000, headers: { 'User-Agent': 'UnlockedMedia/1.0' } });
+const http = axios.create({ timeout: 20000, headers: { 'User-Agent': 'web-streaming/1.0' } });
 
 // Retry wrapper
 async function fetchWithRetry(url, retries = 2) {

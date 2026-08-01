@@ -1,4 +1,4 @@
-app = "unlockedmedia"
+app = "webstreaming"
 primary_region = "iad"
 
 [build]

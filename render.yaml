@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: unlockedmedia
+    name: webstreaming
     env: docker
     region: oregon
     plan: free

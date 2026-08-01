@@ -408,7 +408,7 @@ app.use((err, req, res, next) => {
 });
 
 const server = app.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n  🎬 UnlockedMedia running at http://0.0.0.0:${PORT}`);
+  console.log(`\n  web-streaming running at http://0.0.0.0:${PORT}`);
   console.log(`  🌐 Public: http://localhost:${PORT}\n`);
 });
 

@@ -8,7 +8,7 @@ const sb = createClient(SUPABASE_URL, SUPABASE_KEY, {
 });
 
 async function signUp(username, password, email) {
-  const userEmail = email || `${username}@unlockedmedia.local`;
+  const userEmail = email || `${username}@webstreaming.local`;
   const { data, error } = await sb.auth.admin.createUser({
     email: userEmail, password, email_confirm: true,
     user_metadata: { username },
