@@ -143,15 +143,17 @@ app.get('/api/download/:id/status', (req, res) => {
 });
 
 app.get('/api/download/:id/file', (req, res) => {
-  const buffer = download.getFile(req.params.id);
-  if (!buffer) return res.status(404).json({ error: 'Not ready yet' });
+  const filePath = download.getFile(req.params.id);
+  if (!filePath) return res.status(404).json({ error: 'Not ready yet' });
+  const fs = require('fs');
+  const stat = fs.statSync(filePath);
   res.writeHead(200, {
     'Content-Type': 'video/mp4',
-    'Content-Length': buffer.length,
+    'Content-Length': stat.size,
     'Accept-Ranges': 'bytes',
   });
-  res.end(buffer);
-  setTimeout(() => download.cleanup(req.params.id), 60000);
+  fs.createReadStream(filePath).pipe(res);
+  setTimeout(() => download.cleanup(req.params.id), 120000);
 });
 
 app.get('/api/download/:id/subtitles', (req, res) => {

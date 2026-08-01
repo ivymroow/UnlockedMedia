@@ -1,12 +1,16 @@
-const { transcodeBuffer } = require('./transcode');
+const { transcodeFile, hasFfmpeg } = require('./transcode');
 const media = require('./media-finder');
 const crypto = require('crypto');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 
 const downloads = new Map();
+const TMP = process.env.TMPDIR || os.tmpdir();
 
 function createDownload(infoHash, fileIndex) {
   const id = crypto.randomBytes(8).toString('hex');
-  const entry = { id, infoHash, fileIndex, progress: 0, speed: 0, done: false, transcoding: false, error: null, buffer: null, subData: null, startTime: Date.now() };
+  const entry = { id, infoHash, fileIndex, progress: 0, speed: 0, done: false, transcoding: false, error: null, filePath: null, subData: null, startTime: Date.now() };
   downloads.set(id, entry);
 
   const link = media.makeLink(infoHash, 'download');
@@ -37,10 +41,11 @@ function createDownload(infoHash, fileIndex) {
 
 async function finalizeDownload(entry, file, tor) {
   try {
-    const chunks = [];
-    const ws = file.createReadStream();
-    for await (const chunk of ws) chunks.push(chunk);
-    const rawBuf = Buffer.concat(chunks);
+    // Write raw file to disk
+    const rawPath = path.join(TMP, `${entry.id}.raw`);
+    const writeStream = fs.createWriteStream(rawPath);
+    file.createReadStream().pipe(writeStream);
+    await new Promise((resolve, reject) => { writeStream.on('finish', resolve); writeStream.on('error', reject); });
     try { tor.destroy(); } catch {}
 
     // Extract subtitles if present
@@ -53,9 +58,17 @@ async function finalizeDownload(entry, file, tor) {
       } catch {}
     }
 
+    // Transcode to disk (streaming, no memory buffer)
     entry.transcoding = true;
-    entry.buffer = transcodeBuffer ? await transcodeBuffer(rawBuf) : rawBuf;
+    const outPath = path.join(TMP, `${entry.id}.mp4`);
+    if (hasFfmpeg) {
+      await transcodeFile(rawPath, outPath);
+      try { fs.unlinkSync(rawPath); } catch {}
+    } else {
+      fs.renameSync(rawPath, outPath);
+    }
     entry.transcoding = false;
+    entry.filePath = outPath;
     entry.done = true;
     entry.progress = 1;
   } catch (e) { entry.error = e.message; entry.transcoding = false; }
@@ -74,8 +87,8 @@ function getStatus(id) {
 
 function getFile(id) {
   const entry = downloads.get(id);
-  if (!entry || !entry.done) return null;
-  return entry.buffer;
+  if (!entry || !entry.done || !entry.filePath) return null;
+  return entry.filePath;
 }
 
 function getSubtitles(id) {
@@ -88,7 +101,10 @@ function getSubtitles(id) {
 
 function cleanup(id) {
   const entry = downloads.get(id);
-  if (entry) { entry.buffer = null; entry.subData = null; downloads.delete(id); }
+  if (entry) {
+    if (entry.filePath) try { fs.unlinkSync(entry.filePath); } catch {}
+    entry.filePath = null; entry.subData = null; downloads.delete(id);
+  }
 }
 
 module.exports = { createDownload, getStatus, getFile, getSubtitles, cleanup };

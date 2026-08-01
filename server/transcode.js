@@ -103,7 +103,6 @@ async function transcodeBuffer(input) {
       'pipe:1',
     ], { stdio: ['pipe', 'pipe', 'pipe'] });
     const chunks = [];
-    let done = false;
     ff.stdout.on('data', c => chunks.push(c));
     ff.stderr.on('data', () => {});
     ff.on('close', (code) => {
@@ -115,7 +114,29 @@ async function transcodeBuffer(input) {
   });
 }
 
-// Wait at startup in case FFMPEG check hasn't run
-setTimeout(() => {}, 0);
+function transcodeFile(inputPath, outputPath) {
+  if (!FFMPEG) {
+    const fs = require('fs');
+    fs.copyFileSync(inputPath, outputPath);
+    return Promise.resolve();
+  }
+  const { spawn } = require('child_process');
+  return new Promise((resolve, reject) => {
+    const ff = spawn(FFMPEG, [
+      '-i', inputPath,
+      '-c:v', 'copy',
+      '-c:a', 'aac',
+      '-b:a', '128k',
+      '-ac', '2',
+      '-f', 'mp4',
+      '-movflags', 'frag_keyframe+empty_moov',
+      '-preset', 'ultrafast',
+      '-loglevel', 'error',
+      outputPath,
+    ]);
+    ff.on('close', code => code === 0 ? resolve() : reject(new Error('FFmpeg exit ' + code)));
+    ff.on('error', e => reject(e));
+  });
+}
 
-module.exports = { transcodeStream, transcodeBuffer, hasFfmpeg: !!FFMPEG };
+module.exports = { transcodeStream, transcodeBuffer, transcodeFile, hasFfmpeg: !!FFMPEG };
