@@ -326,7 +326,7 @@ async function PL(){
 }
 async function addToWatchlistFromProfile(id,title,poster,type){try{await api('POST','/api/watchlist/add',{id,title,poster,type});qs('#psInput').value='';qs('#psDrop').style.display='none';alert('Added!')}catch(e){alert(e.message)}}
 
-function restoreFromHash(){const hash=window.location.hash.slice(1);if(!hash||hash==='/'||hash===''){state.view='home';return};if(hash==='profile'){state.view='profile';return};const params=new URLSearchParams(hash);if(params.has('q')){state.query=params.get('q');state.view='search'}else if(params.has('id')){state.view='detail';const se=parseInt(params.get('s')),ep=parseInt(params.get('e'));if(se&&ep){selectedSeason=se;selectedEpisode=ep};state.data={id:params.get('id'),type:params.get('type')||'movie',title:params.get('t')||'',year:params.get('y')||'',season:se||null,episode:ep||null}}else state.view='home'}
+function restoreFromHash(){const hash=window.location.hash.slice(1);if(!hash||hash==='/'||hash==='')return;if(hash==='profile'){state.view='profile';return};const params=new URLSearchParams(hash);if(params.has('q')){state.query=params.get('q');state.view='search'}else if(params.has('id')){state.view='detail';const se=parseInt(params.get('s')),ep=parseInt(params.get('e'));if(se&&ep){selectedSeason=se;selectedEpisode=ep};state.data={id:params.get('id'),type:params.get('type')||'movie',title:params.get('t')||'',year:params.get('y')||'',season:se||null,episode:ep||null}}else state.view='home'}
 
 async function init(){
   try{
