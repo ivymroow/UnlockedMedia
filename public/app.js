@@ -79,9 +79,9 @@ function goBack(){if(state.prevState){state.view=state.prevState.view;state.data
 function toggleSettings(){
   const m=qs('#settings-modal');const s=m.style.display!=='flex'
   m.style.display=s?'flex':'none'
-  if(s){qs('#settingsBackendInput').value=backendUrl;qs('#settingsRDKey').value=localStorage.getItem('um_rdkey')||'';const acct=qs('#settingsAccount');if(acct)acct.innerHTML=state.user?`<label>Account</label><p style="font-size:14px;color:var(--text);margin-top:4px">${esc(state.user.username||state.user.email)}</p><button class="auth-btn" style="margin-top:8px" onclick="signOut();toggleSettings()">Sign Out</button>`:'<label>Account</label><p class="hint" style="margin-top:4px">Not signed in. <a href="#" onclick="showAuth();toggleSettings();return false">Sign in</a> to save progress.</p>'}
+  if(s){qs('#settingsBackendInput').value=backendUrl;const acct=qs('#settingsAccount');if(acct)acct.innerHTML=state.user?`<label>Account</label><p style="font-size:14px;color:var(--text);margin-top:4px">${esc(state.user.username||state.user.email)}</p><button class="auth-btn" style="margin-top:8px" onclick="signOut();toggleSettings()">Sign Out</button>`:'<label>Account</label><p class="hint" style="margin-top:4px">Not signed in. <a href="#" onclick="showAuth();toggleSettings();return false">Sign in</a> to save progress.</p>'}
 }
-function saveSettingsBackend(){const b=qs('#settingsBackendInput')?.value.trim()||'',rd=qs('#settingsRDKey')?.value.trim()||'';if(b){localStorage.setItem('um_backend',b);backendUrl=b}if(rd){localStorage.setItem('um_rdkey',rd);fetch(`${backendUrl||''}/api/debrid/key`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:rd})}).catch(()=>{})}qs('#settings-modal').style.display='none';location.reload()}
+function saveSettingsBackend(){const b=qs('#settingsBackendInput')?.value.trim()||'';if(b){localStorage.setItem('um_backend',b);backendUrl=b}qs('#settings-modal').style.display='none';location.reload()}
 async function render(){renderUserSection();const m=qs('#main');try{if(state.view==='home'){m.innerHTML=H();L()}else if(state.view==='search'){m.innerHTML=S();LS()}else if(state.view==='detail'){m.innerHTML=D();LD()}else if(state.view==='profile'){m.innerHTML=PR();PL()}}catch(e){m.innerHTML=E(e.message)}}
 
 function renderUserSection(){
@@ -327,7 +327,6 @@ function restoreFromHash(){const hash=window.location.hash.slice(1);if(!hash||ha
 
 async function init(){
   try{
-    const rd=localStorage.getItem('um_rdkey');if(rd){fetch('/api/debrid/key',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:rd})}).catch(()=>{})}
     if(token&&refreshToken&&!state.user){const refreshed=await tryRefreshSession();if(refreshed){try{const u=await api('GET','/api/auth/user');state.user=u}catch{}}};if(!state.user&&token){try{const u=await api('GET','/api/auth/user');state.user=u}catch{localStorage.removeItem('um_token');token=''}};await detect();const badge=qs('#modeBadge');if(badge){badge.textContent='[WIP]';badge.className='mode-badge';badge.style.display='inline-block'};if(state.mode==='standalone'&&!navigator.onLine){qs('#setup').style.display='flex';return};qs('#setup').style.display='none';restoreFromHash();if(state.view==='search'&&state.query)qs('#searchInput').value=state.query;render()}catch(e){console.error('Init error:',e);const main=qs('#main');if(main)main.innerHTML='<div class="error-view"><h2>Failed to load</h2><p>'+esc(e.message||'Unknown error')+'</p><button class="play-btn" onclick="location.reload()">Retry</button></div>'}
 }
 

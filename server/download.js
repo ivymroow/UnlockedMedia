@@ -1,8 +1,6 @@
 const { transcodeBuffer } = require('./transcode');
 const media = require('./media-finder');
-const debrid = require('./debrid');
 const crypto = require('crypto');
-const axios = require('axios');
 
 const downloads = new Map();
 
@@ -11,76 +9,56 @@ function createDownload(infoHash, fileIndex) {
   const entry = { id, infoHash, fileIndex, progress: 0, speed: 0, done: false, transcoding: false, error: null, buffer: null, subData: null, startTime: Date.now() };
   downloads.set(id, entry);
 
-  if (!debrid.getKey()) {
-    entry.error = 'No RD key configured. Add it in Settings.';
-    return entry;
-  }
+  const link = media.makeLink(infoHash, 'download');
+  let tor;
+  try { tor = media.getOrStart(link); } catch (e) { entry.error = e.message; return entry; }
 
-  (async () => {
-    try {
-      const magnet = media.makeLink(infoHash, 'download');
-      const torrentId = await debrid.addMagnet(magnet);
+  media.waitForData(tor, 15000).then(() => {
+    const file = tor.files?.[fileIndex] || media.getVideo(tor);
+    if (!file) { entry.error = 'No video file found'; return; }
 
-      let info = await debrid.getInfo(torrentId);
-      if (info.status !== 'downloaded') {
-        await debrid.selectFiles(torrentId, 'all');
-        info = await debrid.waitForDownload(torrentId);
+    const interval = setInterval(() => {
+      entry.progress = tor.progress;
+      entry.speed = tor.downloadSpeed;
+      if (tor.progress >= 1 || tor.done) {
+        clearInterval(interval);
+        finalizeDownload(entry, file, tor);
       }
+    }, 800);
 
-      const files = info.links || [];
-      const exts = ['mp4', 'mkv', 'webm', 'avi', 'mov'];
-      let vidFile = null, subFiles = [];
-      for (let i = 0; i < files.length; i++) {
-        const name = (files[i].filename || files[i] || '').toLowerCase();
-        if (!vidFile && exts.some(e => name.endsWith('.' + e))) vidFile = i;
-        if (['.srt', '.vtt', '.sub', '.ass', '.ssa'].some(e => name.endsWith(e))) subFiles.push(i);
-      }
-      if (vidFile === null) vidFile = Math.min(fileIndex, files.length - 1);
-
-      // Download subtitles if any
-      if (subFiles.length) {
-        const subIdx = subFiles[0];
-        const subLink = files[subIdx]?.download || files[subIdx];
-        const direct = await debrid.unrestrict(subLink);
-        const { data: subText } = await axios.get(direct, { responseType: 'text', timeout: 30000 });
-        entry.subData = subText;
-      }
-
-      // Download video
-      const vidLink = files[vidFile]?.download || files[vidFile];
-      const directUrl = await debrid.unrestrict(vidLink);
-
-      const chunks = [];
-      const { data: stream, headers } = await axios.get(directUrl, { responseType: 'stream', timeout: 600000 });
-      const total = parseInt(headers['content-length']) || 0;
-      let received = 0;
-      const startTime = Date.now();
-
-      stream.on('data', chunk => {
-        chunks.push(chunk);
-        received += chunk.length;
-        const elapsed = (Date.now() - startTime) / 1000;
-        entry.progress = total ? received / total : 0;
-        entry.speed = elapsed > 0 ? received / elapsed : 0;
-      });
-
-      await new Promise((resolve, reject) => {
-        stream.on('end', resolve);
-        stream.on('error', reject);
-      });
-
-      const rawBuf = Buffer.concat(chunks);
-      entry.transcoding = true;
-      entry.buffer = transcodeBuffer ? await transcodeBuffer(rawBuf) : rawBuf;
-      entry.transcoding = false;
-      entry.done = true;
-      entry.progress = 1;
-    } catch (e) {
-      entry.error = e.message || 'Download failed';
-    }
-  })();
+    setTimeout(() => {
+      clearInterval(interval);
+      if (!entry.done && !entry.error) { entry.error = 'Download timeout'; try { tor.destroy(); } catch {} }
+    }, 480000);
+  }).catch(e => { entry.error = e.message; });
 
   return entry;
+}
+
+async function finalizeDownload(entry, file, tor) {
+  try {
+    const chunks = [];
+    const ws = file.createReadStream();
+    for await (const chunk of ws) chunks.push(chunk);
+    const rawBuf = Buffer.concat(chunks);
+    try { tor.destroy(); } catch {}
+
+    // Extract subtitles if present
+    const subFiles = (tor.files || []).filter(f => ['.srt', '.vtt', '.sub', '.ass', '.ssa'].some(e => (f.name || '').toLowerCase().endsWith(e)));
+    if (subFiles.length) {
+      try {
+        const schunks = []; const sws = subFiles[0].createReadStream();
+        for await (const c of sws) schunks.push(c);
+        entry.subData = Buffer.concat(schunks).toString('utf8');
+      } catch {}
+    }
+
+    entry.transcoding = true;
+    entry.buffer = transcodeBuffer ? await transcodeBuffer(rawBuf) : rawBuf;
+    entry.transcoding = false;
+    entry.done = true;
+    entry.progress = 1;
+  } catch (e) { entry.error = e.message; entry.transcoding = false; }
 }
 
 function getStatus(id) {
