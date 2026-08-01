@@ -2,7 +2,7 @@ const store = new Map();
 
 const TTL = {
   tmdb: 10 * 60 * 1000,
-  torrent: 5 * 60 * 1000,
+  source: 5 * 60 * 1000,
   default: 5 * 60 * 1000,
 };
 

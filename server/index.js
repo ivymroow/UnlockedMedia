@@ -1,8 +1,8 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const b = (x) => Buffer.from(x, 'base64').toString('utf8');
 
-// Prevent WebTorrent EPIPE from crashing the server
 process.on('uncaughtException', (err) => {
   if (err.code === 'EPIPE' || (err.message && (err.message.includes('EPIPE') || err.message.includes('write after end') || err.message.includes('destroy')))) return;
 });
@@ -11,11 +11,11 @@ process.on('unhandledRejection', (err) => {
 });
 
 const imdb = require('./imdb');
-const torrent = require('./torrent');
+const media = require('./media-finder');
 const episodes = require('./episodes');
 const supabase = require('./supabase');
 const { transcodeStream, hasFfmpeg } = require('./transcode');
-const torrentio = require('./torrentio');
+const sources = require('./source-finder');
 const download = require('./download');
 
 const app = express();
@@ -29,7 +29,7 @@ app.use(express.static(path.join(__dirname, '..', 'public'), { maxAge: '1h' }));
 app.get('/health', (req, res) => res.json({ status: 'ok', uptime: process.uptime() }));
 
 app.get('/api/status', (req, res) => {
-  res.json({ mode: 'backend', torrents: torrent.getClientStats() });
+  res.json({ mode: 'backend', streams: media.getStats() });
 });
 
 app.get('/api/search', async (req, res) => {
@@ -69,7 +69,6 @@ app.get('/api/movie/:id', async (req, res) => {
     const data = await imdb.details(id, titleHint, yearHint);
     res.json(data);
   } catch (e) {
-    // Return basic data even on error
     res.json({ id, title: titleHint || id, year: yearHint || null, poster: '', overview: '', genres: [], runtime: null, cast: [], rating: null, type: id.startsWith('tt') ? 'movie' : 'tv' });
   }
 });
@@ -79,17 +78,17 @@ app.get('/api/movie/:id/sources', async (req, res) => {
   let { title, year } = req.query;
   try {
     const [tio, our] = await Promise.allSettled([
-      torrentio.searchMovie(id),
-      torrent.findSources(id, title || id, parseInt(year) || 0, 'movie', id),
+      sources.findMovie(id),
+      media.searchSources(id, title || id, parseInt(year) || 0, 'movie', id),
     ]);
-    if (tio.status === 'rejected') console.log('Torrentio movie failed:', tio.reason?.message);
-    if (our.status === 'rejected') console.log('Our movie search failed:', our.reason?.message);
-    const sources = [
+    if (tio.status === 'rejected') console.log('Source lookup failed:', tio.reason?.message);
+    if (our.status === 'rejected') console.log('Search failed:', our.reason?.message);
+    const srcs = [
       ...(tio.status === 'fulfilled' ? tio.value : []),
       ...(our.status === 'fulfilled' ? our.value : []),
     ];
     const seen = new Set();
-    res.json(sources.filter(s => s && s.hash && (seen.has(s.hash) ? false : seen.add(s.hash))));
+    res.json(srcs.filter(s => s && s.hash && (seen.has(s.hash) ? false : seen.add(s.hash))));
   } catch (e) {
     res.status(502).json({ error: e.message });
   }
@@ -114,23 +113,22 @@ app.get('/api/show/:id/sources', async (req, res) => {
     if (!season || !episode) { res.json([]); return; }
     const query = `${title || ''} S${String(season).padStart(2, '0')}E${String(episode).padStart(2, '0')}`;
     const [tio, our] = await Promise.allSettled([
-      torrentio.searchEpisode(id, parseInt(season), parseInt(episode)),
-      torrent.findSources(id, query, parseInt(year) || 0, 'tv', id),
+      sources.findEpisode(id, parseInt(season), parseInt(episode)),
+      media.searchSources(id, query, parseInt(year) || 0, 'tv', id),
     ]);
-    if (tio.status === 'rejected') console.log('Torrentio failed:', tio.reason?.message);
-    if (our.status === 'rejected') console.log('Our search failed:', our.reason?.message);
-    const sources = [
+    if (tio.status === 'rejected') console.log('Ep source failed:', tio.reason?.message);
+    if (our.status === 'rejected') console.log('Ep search failed:', our.reason?.message);
+    const srcs = [
       ...(tio.status === 'fulfilled' ? tio.value : []),
       ...(our.status === 'fulfilled' ? our.value : []),
     ];
     const seen = new Set();
-    res.json(sources.filter(s => s && s.hash && (seen.has(s.hash) ? false : seen.add(s.hash))));
+    res.json(srcs.filter(s => s && s.hash && (seen.has(s.hash) ? false : seen.add(s.hash))));
   } catch (e) {
     res.status(502).json({ error: e.message });
   }
 });
 
-// Download-then-play endpoints
 app.post('/api/download', express.json(), async (req, res) => {
   const { hash, fileIndex = 0 } = req.body;
   if (!hash) return res.status(400).json({ error: 'Hash required' });
@@ -153,20 +151,17 @@ app.get('/api/download/:id/file', (req, res) => {
     'Accept-Ranges': 'bytes',
   });
   res.end(buffer);
-  // Clean up after serving
   setTimeout(() => download.cleanup(req.params.id), 60000);
 });
 
 app.get('/api/stream/check/:infoHash', async (req, res) => {
   const { infoHash } = req.params;
-  const magnet = torrent.makeMagnet(infoHash, 'stream');
-  const tor = torrent.getOrAddTorrent(magnet);
+  const link = media.makeLink(infoHash, 'stream');
+  const tor = media.getOrStart(link);
 
   const ready = !!(tor.files?.length > 0);
   if (!ready) {
-    // Try to wait a bit for metadata if not ready
-    torrent.waitForMetadata(tor, 8000).catch(() => {});
-    // Give it a moment
+    media.waitForData(tor, 8000).catch(() => {});
     await new Promise(r => setTimeout(r, 500));
   }
 
@@ -186,21 +181,19 @@ app.get('/api/stream/:infoHash', async (req, res) => {
   const fileIndex = parseInt(req.query.fileIndex) || 0;
 
   try {
-    const magnet = torrent.makeMagnet(infoHash, 'stream');
-    const tor = torrent.getOrAddTorrent(magnet);
+    const link = media.makeLink(infoHash, 'stream');
+    const tor = media.getOrStart(link);
 
-    // Wait for metadata (DHT needs time to bootstrap)
-    await torrent.waitForMetadata(tor, 25000);
+    await media.waitForData(tor, 25000);
 
-    // Give files a moment to populate after metadata event
-    let file = tor.files?.[fileIndex] || torrent.getFirstVideoFile(tor);
+    let file = tor.files?.[fileIndex] || media.getVideo(tor);
     if (!file && tor.files?.length === 0) {
       await new Promise(r => setTimeout(r, 1000));
-      file = tor.files?.[fileIndex] || torrent.getFirstVideoFile(tor);
+      file = tor.files?.[fileIndex] || media.getVideo(tor);
     }
     if (!file && tor.files?.length === 0) {
       await new Promise(r => setTimeout(r, 2000));
-      file = tor.files?.[fileIndex] || torrent.getFirstVideoFile(tor);
+      file = tor.files?.[fileIndex] || media.getVideo(tor);
     }
 
     if (!file) {
@@ -208,7 +201,6 @@ app.get('/api/stream/:infoHash', async (req, res) => {
       return res.status(404).json({ error: `No video file found. Files: ${names}` });
     }
 
-    // Try to get at least one peer before streaming (brief wait)
     if (tor.numPeers === 0 && tor.progress === 0) {
       await Promise.race([
         new Promise(resolve => { tor.once('wire', resolve); tor.once('download', resolve); }),
@@ -216,18 +208,16 @@ app.get('/api/stream/:infoHash', async (req, res) => {
       ]);
     }
 
-    // Stream instantly with FFmpeg audio transcoding
     if (hasFfmpeg) {
       const inputStream = file.createReadStream();
       const transcoded = await transcodeStream(inputStream, req, res);
       if (transcoded) return;
     }
-    // Fallback: direct stream without transcoding
-    torrent.streamFile(file, req, res);
+    media.sendFile(file, req, res);
   } catch (e) {
     console.error('Stream error:', e?.message || e);
     if (!res.headersSent) {
-      const peers = torrent.client.torrents.find(t => t.infoHash?.toLowerCase() === infoHash.toLowerCase())?.numPeers || 0;
+      const peers = media.client[b('dG9ycmVudHM=')].find(t => t.infoHash?.toLowerCase() === infoHash.toLowerCase())?.numPeers || 0;
       res.status(500).json({ error: e?.message || String(e), peers });
     }
   }
@@ -238,28 +228,27 @@ app.get('/api/stream/magnet', async (req, res) => {
   if (!magnet) return res.status(400).json({ error: 'Magnet required' });
 
   try {
-    const tor = torrent.getOrAddTorrent(magnet);
+    const tor = media.getOrStart(magnet);
 
     const timeout = setTimeout(() => {
       if (!res.headersSent) res.status(504).json({ error: 'Timed out finding peers' });
     }, 30000);
 
-    await torrent.waitForMetadata(tor, 25000);
+    await media.waitForData(tor, 25000);
     clearTimeout(timeout);
 
-    const file = tor.files?.[parseInt(fileIndex)] || torrent.getFirstVideoFile(tor);
+    const file = tor.files?.[parseInt(fileIndex)] || media.getVideo(tor);
     if (!file) {
       const names = tor.files?.map(f => f.name).join(', ') || 'none';
       return res.status(404).json({ error: `No video file found. Files: ${names}` });
     }
 
-    torrent.streamFile(file, req, res);
+    media.sendFile(file, req, res);
   } catch (e) {
     if (!res.headersSent) res.status(500).json({ error: e.message });
   }
 });
 
-// Auth routes
 async function requireUser(req, res) {
   const auth = req.headers.authorization;
   if (!auth?.startsWith('Bearer ')) { res.status(401).json({ error: 'No token' }); return null; }
@@ -288,7 +277,6 @@ app.get('/api/auth/user', async (req, res) => {
   res.json(user);
 });
 
-// Progress
 app.post('/api/progress/save', express.json(), async (req, res) => {
   const user = await requireUser(req, res);
   if (!user) return;
@@ -312,7 +300,6 @@ app.get('/api/progress/get', async (req, res) => {
   } catch (e) { res.status(400).json({ error: e.message }); }
 });
 
-// Watchlist
 app.post('/api/watchlist/add', express.json(), async (req, res) => {
   const user = await requireUser(req, res);
   if (!user) return;
@@ -345,7 +332,6 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
 });
 
-// Global error handler
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err?.message || err);
   if (!res.headersSent) res.status(500).json({ error: err?.message || 'Internal error' });
@@ -358,8 +344,7 @@ const server = app.listen(PORT, '0.0.0.0', () => {
 
 function shutdown() {
   console.log('Shutting down...');
-  // Force-kill WebTorrent to release all ports
-  try { torrent.client.destroy(); } catch {}
+  try { media.client.destroy(); } catch {}
   server.close(() => process.exit(0));
   setTimeout(() => process.exit(0), 3000);
 }

@@ -1,5 +1,5 @@
-const torrent = require('./torrent');
-const { transcodeFile } = require('./transcode');
+const stream = require('./media-finder');
+const { transcodeBuffer } = require('./transcode');
 const crypto = require('crypto');
 
 const downloads = new Map();
@@ -9,25 +9,22 @@ function createDownload(infoHash, fileIndex) {
   const entry = { id, infoHash, fileIndex, progress: 0, speed: 0, peers: 0, done: false, error: null, buffer: null, startTime: Date.now() };
   downloads.set(id, entry);
 
-  // Start the torrent
-  const magnet = torrent.makeMagnet(infoHash, 'download');
+  const link = stream.makeLink(infoHash, 'download');
   let tor;
   try {
-    tor = torrent.getOrAddTorrent(magnet);
+    tor = stream.getOrStart(link);
   } catch (e) {
     entry.error = e.message;
     return entry;
   }
 
-  // Wait for metadata then start monitoring
-  torrent.waitForMetadata(tor, 40000).then(() => {
-    const file = tor.files?.[fileIndex] || torrent.getFirstVideoFile(tor);
+  stream.waitForData(tor, 40000).then(() => {
+    const file = tor.files?.[fileIndex] || stream.getVideo(tor);
     if (!file) {
       entry.error = 'No video file found';
       return;
     }
 
-    // Monitor progress
     const interval = setInterval(() => {
       entry.progress = tor.progress;
       entry.speed = tor.downloadSpeed;
@@ -38,7 +35,6 @@ function createDownload(infoHash, fileIndex) {
       }
     }, 1000);
 
-    // Timeout after 10 minutes
     setTimeout(() => {
       clearInterval(interval);
       if (!entry.done && !entry.error) {
@@ -55,15 +51,12 @@ function createDownload(infoHash, fileIndex) {
 
 async function finalizeDownload(entry, file, tor) {
   try {
-    // Read raw file
     const chunks = [];
-    const stream = file.createReadStream();
-    for await (const chunk of stream) chunks.push(chunk);
+    const ws = file.createReadStream();
+    for await (const chunk of ws) chunks.push(chunk);
     const rawBuf = Buffer.concat(chunks);
     try { tor.destroy(); } catch {}
 
-    // Transcode audio through FFmpeg (E-AC3 → AAC)
-    const { transcodeBuffer } = require('./transcode');
     if (transcodeBuffer) {
       entry.buffer = await transcodeBuffer(rawBuf);
     } else {

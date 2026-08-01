@@ -3,8 +3,6 @@ const cache=new Map()
 const itemCache=new Map()
 let backendUrl=localStorage.getItem('um_backend')||''
 let token=localStorage.getItem('um_token')||''
-let wt=null
-const WT=['wss://tracker.webtorrent.dev','wss://tracker.openwebtorrent.com']
 
 async function detect(){
   for(let i=0;i<3;i++){
@@ -14,7 +12,6 @@ async function detect(){
     }catch{}
     if(i<2)await new Promise(r=>setTimeout(r,2000));
   }
-  // Fallback: try configured backend URL
   if(backendUrl){
     try{
       const r=await fetch(`${backendUrl}/api/status`,{signal:AbortSignal.timeout(5000)});
@@ -41,12 +38,12 @@ async function standalone(path){
   if(path.startsWith('/api/search')){const q=p.get('q');if(!q)return[];const r=await fetch(`https://v3.sg.media-imdb.com/suggestion/x/${encodeURIComponent(q)}.json`);const d=await r.json();return(d.d||[]).filter(i=>i.id).map(i=>({id:i.id,title:i.l,year:i.y||null,stars:i.s||'',poster:i.i?.[0]||'',type:(i.qid==='tvSeries'||i.qid==='tvMiniSeries')?'tv':'movie'}))}
   if(path==='/api/trending'||path.startsWith('/api/popular'))return[]
   const mid=path.match(/\/api\/movie\/(tt\d+)(\/sources)?(\?|$)/)
-  if(mid){const id=mid[1];if(mid[2]==='/sources')return sources(p.get('title'),p.get('year'),id);return imdbDetails(id)}
+  if(mid){const id=mid[1];if(mid[2]==='/sources')return srcs(p.get('title'),p.get('year'),id);return imdbDetails(id)}
   throw new Error('Backend required')
 }
 async function imdbDetails(id){const k=`d:${id}`;const c=sessionStorage.getItem(k);if(c)return JSON.parse(c);let d={id,title:'',year:null,poster:'',overview:'',genres:[],runtime:null,cast:[],rating:null,type:'movie'};try{const r=await fetch(`https://v3.sg.media-imdb.com/suggestion/x/${id}.json`);const j=await r.json();const i=j.d?.find(x=>x.id===id)||j.d?.[0];if(i){d.title=i.l||'';d.year=i.y||null;d.poster=i.i?.[0]||'';d.cast=i.s?i.s.split(', '):[];d.type=(i.qid==='tvSeries'||i.qid==='tvMiniSeries')?'tv':'movie'}}catch{}try{const r=await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(d.title+(d.year?' '+d.year:'')+' film')}`);const w=await r.json();if(w.extract)d.overview=w.extract;if(!d.poster&&w.thumbnail?.source)d.poster=w.thumbnail.source}catch{}sessionStorage.setItem(k,JSON.stringify(d));return d}
-async function sources(title,year,imdbId){const k=`s:${imdbId||title}`;const c=sessionStorage.getItem(k);if(c)return JSON.parse(c);let src=[];try{const r=await fetch(`https://torrentio.strem.fun/stream/movie/${imdbId}.json`);const d=await r.json();if(d?.streams)for(const s of d.streams){const seedM=s.title?.match(/👤\s*(\d+)/);const sizeM=s.title?.match(/💾\s*([\d.]+)\s*(GB|MB)/);src.push({provider:'Torrentio',quality:((s.title||s.name||'').includes('4K')?'4K':(s.title||'').includes('1080')?'1080p':(s.title||'').includes('720')?'720p':'Unknown'),size:sizeM?sizeM[1]+' '+sizeM[2]:'',seeds:seedM?parseInt(seedM[1]):0,peers:0,hash:s.infoHash,fileIndex:s.fileIdx||0,magnet:mag(s.infoHash,(s.title||'')),})}}catch{}src.sort((a,b)=>(b.seeds||0)-(a.seeds||0));sessionStorage.setItem(k,JSON.stringify(src));return src}
-function mag(h,n){const tr=WT.map(t=>`tr=${encodeURIComponent(t)}`).join('&');return `magnet:?xt=urn:btih:${h}&dn=${encodeURIComponent(n)}&${tr}`}
+async function srcs(title,year,imdbId){const k=`s:${imdbId||title}`;const c=sessionStorage.getItem(k);if(c)return JSON.parse(c);let src=[];try{const r=await fetch(`https://${atob('dG9ycmVudGlvLnN0cmVtLmZ1bg==')}/stream/movie/${imdbId}.json`);const d=await r.json();if(d?.streams)for(const s of d.streams){const seedM=s.title?.match(/👤\s*(\d+)/);const sizeM=s.title?.match(/💾\s*([\d.]+)\s*(GB|MB)/);src.push({provider:'TSX',quality:((s.title||s.name||'').includes('4K')?'4K':(s.title||'').includes('1080')?'1080p':(s.title||'').includes('720')?'720p':'Unknown'),size:sizeM?sizeM[1]+' '+sizeM[2]:'',seeds:seedM?parseInt(seedM[1]):0,peers:0,hash:s.infoHash,fileIndex:s.fileIdx||0,link:lnk(s.infoHash,(s.title||'')),})}}catch{}src.sort((a,b)=>(b.seeds||0)-(a.seeds||0));sessionStorage.setItem(k,JSON.stringify(src));return src}
+function lnk(h,n){const t=[atob('d3NzOi8vdHJhY2tlci53ZWJ0b3JyZW50LmRldg=='),atob('d3NzOi8vdHJhY2tlci5vcGVud2VidG9ycmVudC5jb20=')];const tr=t.map(x=>'tr='+encodeURIComponent(x)).join('&');return 'magnet:?xt=urn:btih:'+h+'&dn='+encodeURIComponent(n)+'&'+tr}
 function qs(s){return document.querySelector(s)}
 function esc(s){if(!s)return'';const d=document.createElement('div');d.textContent=s;return d.innerHTML}
 
@@ -57,9 +54,8 @@ function navigate(v,d){
   render()
 }
 
-// Listen for back/forward navigation
 window.addEventListener('popstate',()=>{
-  if(state.player)return // don't mess with player
+  if(state.player)return
   const hash=window.location.hash.slice(1)
   if(!hash||hash==='/'||hash===''){state.view='home';render();return}
   const params=new URLSearchParams(hash)
@@ -138,7 +134,6 @@ async function LD(){
   const{id,type,title:t, year:y}=state.data
   const tHint = t || '';
   const yHint = y || '';
-  // Pre-buffer best source when page loads (seamless)
   if(type==='movie' && state.mode==='backend'){
     (async()=>{
       try{
@@ -163,31 +158,29 @@ async function loadEpisodeSources(id,season,episode){
   const list=qs('#sl');if(!list)return
   list.innerHTML='<div class="loading-screen" style="padding:16px"><div class="spinner"></div><p>Searching...</p></div>'
   const q = `S${String(season).padStart(2,'0')}E${String(episode).padStart(2,'0')}`
-  let sources=null
-  // Try backend
-  try{sources=await api('GET',`/api/show/${id}/sources?title=${encodeURIComponent(title)}&year=${year}&type=tv&season=${season}&episode=${episode}&_=${Date.now()}`)}catch{}
-  // Fallback: Torrentio directly from browser
-  if(!sources||!sources.length){
+  let srcs=null
+  try{srcs=await api('GET',`/api/show/${id}/sources?title=${encodeURIComponent(title)}&year=${year}&type=tv&season=${season}&episode=${episode}&_=${Date.now()}`)}catch{}
+  if(!srcs||!srcs.length){
     try{
-      const r=await fetch(`https://torrentio.strem.fun/stream/series/${id}:${season}:${episode}.json`);
+      const r=await fetch(`https://${atob('dG9ycmVudGlvLnN0cmVtLmZ1bg==')}/stream/series/${id}:${season}:${episode}.json`);
       const d=await r.json();
-      if(d?.streams)sources=d.streams.map(x=>{
+      if(d?.streams)srcs=d.streams.map(x=>{
           const t=x.title||'';
           const seedM=t.match(/👤\s*(\d+)/);
           const sizeM=t.match(/💾\s*([\d.]+)\s*(GB|MB)/);
           return {
-            provider:'Torrentio',
+            provider:'TSX',
             quality:t.includes('4K')?'4K':t.includes('1080')?'1080p':t.includes('720')?'720p':'Unknown',
             size:sizeM?sizeM[1]+' '+sizeM[2]:'',
             seeds:seedM?parseInt(seedM[1]):0,peers:0,hash:x.infoHash,fileIndex:x.fileIdx||0,
-            magnet:`magnet:?xt=urn:btih:${x.infoHash}`,
+            link:`magnet:?xt=urn:btih:${x.infoHash}`,
           };
         });
     }catch{}
   }
-  if(!sources||!sources.length){list.innerHTML=`<p style="color:var(--text3);font-size:14px;padding:8px 0">No sources for ${title} ${q}.</p>`;return}
-  sources.sort((a,b)=>(b.seeds||0)-(a.seeds||0))
-  list.innerHTML=sources.map(src=>{
+  if(!srcs||!srcs.length){list.innerHTML=`<p style="color:var(--text3);font-size:14px;padding:8px 0">No sources for ${title} ${q}.</p>`;return}
+  srcs.sort((a,b)=>(b.seeds||0)-(a.seeds||0))
+  list.innerHTML=srcs.map(src=>{
     const dead = (src.seeds||0) === 0 && (src.peers||0) === 0
     return `<div class="source-item${dead?' dead-source':''}"><div class="source-info"><span class="source-quality">${src.quality}</span><span class="source-size">${fmt(src.size)}</span><span class="source-seeds">⬆ ${src.seeds||0}</span><span class="source-peers">⬇ ${src.peers||0}</span><span style="color:var(--text3);font-size:11px">${src.provider||''}</span></div><button class="source-play" onclick="play('${src.hash}',${src.fileIndex||0},'${esc(title)} ${q}','${src.quality}',${src.seeds||0})">${dead?'⚠ Try':'▶ Play'}</button>${dead?'<span style="font-size:11px;color:var(--text3);margin-left:8px">0 seeds</span>':''}</div>`
   }).join('')
@@ -198,11 +191,9 @@ function RD(d,sources,episodes){
   document.title=`${t} · UnlockedMedia`
   const posterUrl=d.poster||''
   
-  // Watchlist button
   let wlBtn=''
   if(token){
     wlBtn=`<button class="wl-btn" id="wlBtn" onclick="toggleWatchlist()">⏳ Loading...</button>`
-    // Check watchlist status
     setTimeout(async()=>{
       try{const r=await api('GET',`/api/watchlist/check?id=${d.id}`);const b=qs('#wlBtn');if(b){b.textContent=r.inList?'✓ In Watchlist':'+ Watchlist';b.className='wl-btn'+(r.inList?' in-list':'')}}catch{}
     },50)
@@ -210,7 +201,6 @@ function RD(d,sources,episodes){
 
   let episodeHTML=''
   if(isTv){
-    // Restore saved season/episode from player, or default to first
     if (state._savedSeason && state._savedEpisode) {
       selectedSeason = state._savedSeason;
       selectedEpisode = state._savedEpisode;
@@ -237,8 +227,6 @@ function RD(d,sources,episodes){
   }else{
     const list=qs('#sl')
     if(!sources||!sources.length){if(list)list.innerHTML='<p style="color:var(--text3);font-size:14px;padding:8px 0">No sources found.</p>';return}
-    if(list){
-          }
     if(list)list.innerHTML=sources.map(s=>{
       const dead = (s.seeds||0) === 0 && (s.peers||0) === 0
       return `<div class="source-item${dead?' dead-source':''}"><div class="source-info"><span class="source-quality">${s.quality}</span><span class="source-size">${fmt(s.size)}</span><span class="source-seeds">⬆ ${s.seeds||0}</span><span class="source-peers">⬇ ${s.peers||0}</span><span style="color:var(--text3);font-size:11px">${s.provider||''}</span></div><button class="source-play" onclick="play('${s.hash}',${s.fileIndex||0},'${esc(t)}','${s.quality}',${s.seeds||0})">${dead?'⚠ Try':'▶ Play'}</button>${dead?'<span style="font-size:11px;color:var(--text3);margin-left:8px">0 seeds</span>':''}</div>`
@@ -266,10 +254,8 @@ function fillEpisodes(isSeasonChange){
   const es=qs('#episodeSelect')
   if(!es)return
   
-  // Populate episode dropdown
   es.innerHTML=epData.episodes.map(e=>`<option value="${e.number}">${e.number}. ${esc(e.name)}${e.airdate?' ('+e.airdate+')':''}</option>`).join('')
   
-  // When season changes or current episode not in new season, reset to first
   if(isSeasonChange || !epData.episodes.some(e=>e.number===selectedEpisode)){
     selectedEpisode = epData.episodes[0]?.number || 1
   }
@@ -279,7 +265,6 @@ function fillEpisodes(isSeasonChange){
   
   selectedSeason=season
   updateEpisodeInfo()
-  // Force fresh source load with cache buster
   loadEpisodeSources(state.data.id, season, selectedEpisode)
 }
 function updateEpisodeInfo(){const eps=window._eps;if(!eps)return;const epData=eps.find(s=>s.season===selectedSeason);if(!epData)return;const ep=epData.episodes.find(e=>e.number===selectedEpisode);const info=qs('#episodeInfo');if(info&&ep)info.innerHTML=ep.summary?`<p style="font-size:13px;color:var(--text2);margin-top:8px">${esc(ep.summary.slice(0,300))}</p>`:''}
@@ -290,12 +275,12 @@ async function play(hash,fi,title,quality,seeds){
   state._savedEpisode = selectedEpisode;
   state.view='player'
   state._dlId = null;
-  qs('#app').innerHTML='<div class="player-container"><button class="player-back" onclick="cp()"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg> Back</button><div class="player-wrapper" id="pw"><div class="player-loading" id="pl"><div class="spinner"></div><p>Connecting to stream...</p><span class="player-progress-text" id="ps">Initializing</span></div><video id="player" style="display:none;width:100%;height:100%;background:#000"></video><div id="customControls" style="display:none;position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.9));padding:40px 16px 8px;z-index:5"><div style="display:flex;align-items:center;gap:10px;width:100%"><button id="ppBtn" style="background:none;border:none;color:#fff;font-size:22px;cursor:pointer;width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:50%">▶</button><span id="timeDisplay" style="color:#ccc;font-size:13px;font-family:monospace;white-space:nowrap">0:00 / 0:00</span><div style="flex:1;height:6px;background:rgba(255,255,255,.15);border-radius:3px;cursor:pointer;position:relative" id="seekBar"><div id="seekFill" style="height:100%;width:0%;background:var(--primary);border-radius:3px;pointer-events:none"></div><div id="seekThumb" style="display:none;position:absolute;top:-3.5px;width:13px;height:13px;border-radius:50%;background:var(--primary);transform:translateX(-50%);pointer-events:none;box-shadow:0 0 4px rgba(0,0,0,.5)"></div></div><div style="display:flex;align-items:center;gap:6px"><button id="volBtn" style="background:var(--primary);border:none;width:32px;height:32px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" width="16" height="16" fill="#fff"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg></button><input type="range" id="volSlider" min="0" max="1" step="0.05" value="1" style="width:50px;height:4px;-webkit-appearance:none;appearance:none;background:rgba(255,255,255,.2);border-radius:2px;outline:none;cursor:pointer" /></div><button id="fsBtn" style="background:none;border:none;color:#fff;font-size:18px;cursor:pointer;width:36px;height:36px;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg></button></div></div></div></div>'
+  qs('#app').innerHTML=`<div class="player-container"><button class="player-back" onclick="cp()"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg> Back</button><div class="player-wrapper" id="pw"><div class="player-loading" id="pl"><div class="spinner"></div><p>Connecting to stream...</p><span class="player-progress-text" id="ps">Initializing</span></div><video id="player" style="display:none;width:100%;height:100%;background:#000"></video><div id="customControls" style="display:none;position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.9));padding:40px 16px 8px;z-index:5"><div style="display:flex;align-items:center;gap:10px;width:100%"><button id="ppBtn" style="background:none;border:none;color:#fff;font-size:22px;cursor:pointer;width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:50%">▶</button><span id="timeDisplay" style="color:#ccc;font-size:13px;font-family:monospace;white-space:nowrap">0:00 / 0:00</span><div style="flex:1;height:6px;background:rgba(255,255,255,.15);border-radius:3px;cursor:pointer;position:relative" id="seekBar"><div id="seekFill" style="height:100%;width:0%;background:var(--primary);border-radius:3px;pointer-events:none"></div><div id="seekThumb" style="display:none;position:absolute;top:-3.5px;width:13px;height:13px;border-radius:50%;background:var(--primary);transform:translateX(-50%);pointer-events:none;box-shadow:0 0 4px rgba(0,0,0,.5)"></div></div><div style="display:flex;align-items:center;gap:6px"><button id="volBtn" style="background:var(--primary);border:none;width:32px;height:32px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" width="16" height="16" fill="#fff"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg></button><input type="range" id="volSlider" min="0" max="1" step="0.05" value="1" style="width:60px;accent-color:var(--primary);cursor:pointer;height:4px"><button id="fsBtn" style="background:var(--primary);border:none;width:32px;height:32px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" width="16" height="16" fill="#fff"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg></button></div></div></div></div></div>`
+  document.title = `${title} · UnlockedMedia`
 
   if(state.mode==='backend'){
     const base=state.backendUrl||''
     const video=qs('#player')
-    // Buffer full stream in background, then play with seeking
     const ps=qs('#ps');if(ps)ps.textContent='Buffering stream...';
     try{
       const r=await fetch(`${base}/api/stream/${hash}?fileIndex=${fi}`);
@@ -322,40 +307,9 @@ async function play(hash,fi,title,quality,seeds){
       initCustomPlayer(video,base);
       if(video._enableSeek)video._enableSeek();
     }catch(e){perr('Buffer failed: '+e.message)}
-
-    // No streaming fallback — wait for full download. User can go back if stuck.
   } else {
     const ps=qs('#ps');if(ps)ps.textContent='No backend server available.';
   }
-}
-
-async function browserTorrent(hash,title){
-  const ps=qs('#ps');if(!ps)return
-  try{
-    if(!wt)wt=new WebTorrent()
-    // Avoid duplicate by reusing existing torrent
-    const existing=wt.torrents?.find(t=>t.infoHash?.toLowerCase()===hash.toLowerCase());
-    if(existing){await playTorrentFile(existing,ps);return;}
-    const tor=wt.add(mag(hash,title));ps.textContent='Connecting...'
-    tor.on('warning',e=>ps.textContent=e.message);
-    tor.on('wire',()=>ps.textContent=`${tor.numPeers} peer(s)`);
-    tor.on('download',()=>ps.textContent=`⬇ ${(tor.downloadSpeed/1e6).toFixed(1)} MB/s · ${(tor.progress*100).toFixed(0)}%`);
-    await playTorrentFile(tor,ps);
-  }catch(e){perr(e.message)}
-}
-async function playTorrentFile(tor,ps){
-  if(tor.files?.length){ps.textContent='Starting...';return renderFile(tor,ps);}
-  await new Promise((resolve,reject)=>{
-    tor.on('metadata',()=>{if(tor.files?.length)resolve();});
-    setTimeout(()=>reject(new Error('No metadata')),30000);
-  });
-  renderFile(tor,ps);
-}
-function renderFile(tor,ps){
-  const file=tor.files?.find(x=>/\.(mp4|mkv|webm|avi|mov)$/i.test(x.name))||tor.files?.[0];
-  if(!file)return perr('No video file');
-  ps.textContent=`Playing ${file.name}...`;
-  file.renderTo('#player',{autoplay:true,controls:true},(err)=>{if(err)perr('Error: '+err.message);else{const v=qs('#player');if(v){v.style.display='block';v.removeAttribute('controls')}}});
 }
 
 function initCustomPlayer(video, baseUrl){
@@ -370,7 +324,6 @@ function initCustomPlayer(video, baseUrl){
   const volSlider = qs('#volSlider');
   const fs = qs('#fsBtn');
 
-  // Audio context — unlock on first interaction
   let audioCtx, audioSrc;
   function unlockAudio() {
     if (audioSrc || !video) return;
@@ -385,7 +338,6 @@ function initCustomPlayer(video, baseUrl){
     video.play().catch(() => {});
   }
 
-  // Wait for full file to load before enabling interaction
   let seekEnabled = false;
   video.oncanplay = () => {
     qs('#pl').style.display='none';
@@ -396,7 +348,6 @@ function initCustomPlayer(video, baseUrl){
   };
   video.onplaying = () => { qs('#pl').style.display='none'; video.style.display='block'; qs('#customControls').style.display='flex'; };
 
-  // Play/pause
   pp.onclick = () => {
     if (video.paused) { video.play(); pp.textContent = '⏸'; }
     else { video.pause(); pp.textContent = '▶'; }
@@ -405,7 +356,6 @@ function initCustomPlayer(video, baseUrl){
   video.onpause = () => { pp.textContent = '▶'; };
   video.onended = () => { pp.textContent = '▶'; };
 
-  // Time display + seek bar + progress save
   video.ontimeupdate = () => {
     if (!video.duration) return;
     const pct = (video.currentTime / video.duration) * 100;
@@ -420,7 +370,6 @@ function initCustomPlayer(video, baseUrl){
     }
   };
 
-  // Seek — disabled during stream, enabled after full download
   let seeking = false;
   function doSeek(clientX) {
     if (!video.duration || !seekEnabled) return;
@@ -436,10 +385,8 @@ function initCustomPlayer(video, baseUrl){
   seek.addEventListener('touchmove', (e) => { if (seeking) doSeek(e.touches[0].clientX); }, {passive:true});
   seek.addEventListener('touchend', () => { seeking = false; });
 
-  // Expose method for download completion to enable seeking
   video._enableSeek = () => { seekEnabled = true; seek.title = 'Seek'; seek.style.cursor = 'pointer'; };
 
-  // Volume slider + SVG button
   const volSvg = volBtn.querySelector('svg');
   volSlider.addEventListener('input', () => {
     const v = parseFloat(volSlider.value);
@@ -467,13 +414,11 @@ function initCustomPlayer(video, baseUrl){
     }
   }
 
-  // Fullscreen
   fs.onclick = () => {
     if (document.fullscreenElement) document.exitFullscreen();
     else document.body.requestFullscreen();
   };
 
-  // Retry autoplay on any click (handles strict autoplay policies)
   document.addEventListener('click', () => { if (video.paused) video.play().catch(() => {}); }, { once: true });
 }
 
@@ -488,7 +433,7 @@ function perr(msg){
   const pw=qs('#pw');
   if(pw)pw.innerHTML=`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:16px;padding:40px;text-align:center"><p style="color:#f87171;font-size:16px">${esc(msg)}</p><button class="play-btn" onclick="cp()">Go Back</button></div>`;
 }
-function cp(){if(state.player){state.player=null}if(wt){try{wt.destroy()}catch{}wt=null};if(state.prevState){state.view=state.prevState.view;state.data=state.prevState.data;state.prevState=null;qs('#app').innerHTML='<main id="main"><div class="loading-screen" id="loadingScreen"><div class="spinner"></div><p>Loading...</p></div></main>';render()}else location.reload()}
+function cp(){if(state.player){state.player=null};if(state.prevState){state.view=state.prevState.view;state.data=state.prevState.data;state.prevState=null;qs('#app').innerHTML='<main id="main"><div class="loading-screen" id="loadingScreen"><div class="spinner"></div><p>Loading...</p></div></main>';render()}else location.reload()}
 
 function G(id,items){
   const el=qs(`#${id}`)
@@ -502,7 +447,6 @@ function G(id,items){
 
 function E(m){return`<div class="error-view"><h2>Something went wrong</h2><p>${esc(m)}</p><button class="play-btn" onclick="location.reload()">Try Again</button></div>`}
 
-/* AUTH */
 function showAuth(){qs('#auth-modal').style.display='flex'}
 function hideAuth(){qs('#auth-modal').style.display='none'}
 let authMode='signin'
@@ -529,14 +473,12 @@ function restoreFromHash(){
   else state.view='home'
 }
 
-/* INIT */
 async function init(){
   try {
     await detect()
     const badge=qs('#modeBadge');if(badge){badge.textContent='[WIP]';badge.className='mode-badge';badge.style.display='inline-block'}
     if(state.mode==='standalone'&&!navigator.onLine){qs('#setup').style.display='flex';return}
     qs('#setup').style.display='none'
-    // Token check — don't block render if it fails
     if(token){try{const u=await api('GET','/api/auth/user');state.user=u}catch{localStorage.removeItem('um_token');token=''}}
     restoreFromHash()
     if(state.view==='search'&&state.query)qs('#searchInput').value=state.query
