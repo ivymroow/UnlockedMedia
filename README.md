@@ -1,2 +1,2 @@
-# UnlockedMedia
-PLEASE GO AWAY IM BUILDING PRIVATE STREAMING SITE. DONT STEAL. 
+# webstreaming
+simple player lol
