@@ -175,29 +175,6 @@ function updateEpisodeInfo(){const eps=window._eps;if(!eps)return;const epData=e
 
 function playerHTML(title){return`<div class="player-container"><button class="player-back" onclick="cp()"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg> Back</button><div class="player-wrapper" id="pw"><div class="player-loading" id="pl"><div class="spinner"></div><p id="plText">Connecting...</p><span class="player-progress-text" id="ps">Initializing</span></div><video id="player" crossorigin="anonymous" style="display:none;width:100%;height:100%;background:#000"></video><div id="customControls" style="display:none;position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.9));padding:40px 16px 8px;z-index:5"><div style="display:flex;align-items:center;gap:10px;width:100%"><button id="ppBtn" style="background:none;border:none;color:#fff;font-size:22px;cursor:pointer;width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:50%">▶</button><span id="timeDisplay" style="color:#ccc;font-size:13px;font-family:monospace;white-space:nowrap">0:00 / 0:00</span><div style="flex:1;height:6px;background:rgba(255,255,255,.15);border-radius:3px;cursor:pointer;position:relative" id="seekBar"><div id="seekFill" style="height:100%;width:0%;background:var(--primary);border-radius:3px;pointer-events:none"></div><div id="seekThumb" style="display:none;position:absolute;top:-3.5px;width:13px;height:13px;border-radius:50%;background:var(--primary);transform:translateX(-50%);pointer-events:none;box-shadow:0 0 4px rgba(0,0,0,.5)"></div></div><div style="display:flex;align-items:center;gap:6px"><button id="ccBtn" title="Captions" style="background:var(--primary);border:none;width:32px;height:32px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:.5"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#fff" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M7 12h2m3 0h6"/><path d="M7 15h1.5m3.5 0h6"/></svg></button><button id="volBtn" style="background:var(--primary);border:none;width:32px;height:32px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" width="16" height="16" fill="#fff"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg></button><input type="range" id="volSlider" min="0" max="1" step="0.05" value="1" style="width:60px;accent-color:var(--primary);cursor:pointer;height:4px"><button id="fsBtn" style="background:var(--primary);border:none;width:32px;height:32px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" width="16" height="16" fill="#fff"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg></button></div></div></div></div></div>`}
 
-async function startDownload(hash,fi,infoHash,onProgress,onDone){
-  const base=state.backendUrl||''
-  const r=await fetch(`${base}/api/download`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({hash,fileIndex:fi})})
-  const dl=await r.json()
-  if(dl.error)throw new Error(dl.error)
-  const dlId=dl.id
-  const poll=async()=>{
-    try{
-      const sr=await fetch(`${base}/api/download/${dlId}/status`);const st=await sr.json()
-      if(st.error){onProgress({error:st.error});return false}
-      if(st.transcoding){onProgress({transcoding:true});return true}
-      if(st.done){
-        onProgress({done:true})
-        const fr=await fetch(`${base}/api/download/${dlId}/file`);const blob=await fr.blob()
-        onDone(blob,dlId)
-        return false
-      }
-      onProgress({progress:st.progress,speed:st.speed,peers:st.peers});return true
-    }catch{return false}
-  }
-  return poll
-}
-
 async function playBest(){
   if(!state._sources||!state._sources.length)return
   if(state.mode!=='backend'){alert('Backend required');return}
@@ -205,7 +182,7 @@ async function playBest(){
   if(!alive.length){alert('No viable sources');return}
   const title=state.data?._title||''
   state.view='player';document.title=`${title} · SFlix`;qs('#app').innerHTML=playerHTML(title)
-  const ps=qs('#ps'),pl=qs('#plText');if(pl)pl.textContent='Finding fastest source...';if(ps)ps.textContent=`Testing ${alive.length} source(s)...`
+  const ps=qs('#ps'),pl=qs('#plText');if(pl)pl.textContent='Finding source...';if(ps)ps.textContent='Testing '+alive.length+' sources'
 
   try{
     const base=state.backendUrl||''
@@ -213,8 +190,8 @@ async function playBest(){
     const race=await rr.json()
     if(!race.found){perr('No viable source found');return}
     if(race.error){perr(race.error);return}
-    if(pl)pl.textContent='Downloading...';if(ps)ps.textContent=`${race.name||''} (${race.peers||0} peers)`
-    const downloadId=race.id,doneBlob=await pollDownload(downloadId,ps,pl,race.hash)
+    if(pl)pl.textContent='Buffering...'
+    const doneBlob=await pollDownload(race.id,ps,pl,race.hash)
     if(!doneBlob)return
     finishPlayer(doneBlob,race.hash)
   }catch(e){perr(e.message)}
@@ -223,7 +200,7 @@ async function playBest(){
 async function playSource(hash,fi,title){
   if(state.mode!=='backend'){alert('Backend required');return}
   state.view='player';document.title=`${title} · SFlix`;qs('#app').innerHTML=playerHTML(title)
-  const ps=qs('#ps'),pl=qs('#plText');if(pl)pl.textContent='Connecting...';if(ps)ps.textContent='Starting download...'
+  const ps=qs('#ps'),pl=qs('#plText');if(pl)pl.textContent='Connecting...';if(ps)ps.textContent=''
   try{
     const doneBlob=await pollDownload(null,ps,pl,hash,fi)
     if(!doneBlob)return
@@ -247,20 +224,21 @@ async function pollDownload(downloadId,ps,pl,hash,fi){
         if(!st||st.error){clearInterval(iv);if(st?.error)perr(st.error);resolve(null);return}
         if(st.transcoding){if(pl)pl.textContent='Processing audio...';if(ps)ps.textContent='';return}
         if(st.done){
-          clearInterval(iv);if(pl)pl.textContent='Loading video...';if(ps)ps.textContent='';
-          try{const fr=await fetch(`${base}/api/download/${dlId}/file`);const blob=await fr.blob();resolve(blob)}catch(e){perr('Failed to load: '+e.message);resolve(null)}
+          clearInterval(iv);if(pl)pl.textContent='Loading subtitles...';if(ps)ps.textContent=''
+          try{const fr=await fetch(`${base}/api/download/${dlId}/file`);const blob=await fr.blob();resolve(blob)}catch(e){perr('Failed: '+e.message);resolve(null)}
           return
         }
         const pct=Math.round((st.progress||0)*100),speed=st.speed?`${(st.speed/1e6).toFixed(1)} MB/s`:''
-        if(ps)ps.textContent=`${pct}% ${speed} (${st.peers||0} peers)`
+        if(pl)pl.textContent='Buffering...';if(ps)ps.textContent=`${pct}%${speed?' · '+speed:''}`
       }catch{clearInterval(iv);resolve(null)}
     },1000)
-    setTimeout(()=>{clearInterval(iv);resolve(null)},540000)
+    setTimeout(()=>{clearInterval(iv);resolve(null)},480000)
   })
 }
 
 function finishPlayer(blob,infoHash){
-  const video=qs('#player'),pl=qs('#pl')
+  const video=qs('#player'),pl=qs('#pl'),plText=qs('#plText')
+  if(plText)plText.textContent='Starting...'
   pl.style.display='none';video.style.display='block'
   video.muted=false;video.volume=1
   video.src=URL.createObjectURL(blob)
