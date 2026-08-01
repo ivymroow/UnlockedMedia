@@ -102,31 +102,6 @@ Browser (HTTP) → Server (Express.js) → WebTorrent/FFmpeg → Video Stream
 
 ---
 
-## Running Locally
-
-```bash
-git clone https://github.com/ivymroow/webstreaming.git
-cd webstreaming
-npm install
-npm start
-# Open http://localhost:3000
-```
-
-## Deploying
-
-```bash
-# VPS
-git clone https://github.com/ivymroow/webstreaming.git
-cd webstreaming
-docker compose up -d
-# Access at http://<vps-ip>:3000
-
-# Render
-# Connect repo, Dockerfile auto-detected, set PORT=3000
-```
-
----
-
 ## License & Disclaimer
 
 This project is for **personal use only**. Only stream content you have the right to access. The developer is not responsible for how this software is used. All APIs consumed are publicly available and free.
