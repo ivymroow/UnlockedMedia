@@ -17,11 +17,7 @@ function numberFromEnv(name, fallback) {
 }
 
 function requireEnv(name) {
-  const value = process.env[name];
-  if (!value && isProduction) {
-    throw new Error(`Missing required environment variable: ${name}`);
-  }
-  return value || '';
+  return process.env[name] || '';
 }
 
 function optionalEnv(name) {

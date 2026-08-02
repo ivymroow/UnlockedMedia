@@ -12,7 +12,7 @@ const progressRoutes = require('./routes/progress');
 const watchlistRoutes = require('./routes/watchlist');
 
 function createCorsOptions() {
-  if (!env.corsOrigins.length && !env.isProduction) return {};
+  if (!env.corsOrigins.length) return {};
 
   return {
     origin(origin, callback) {
