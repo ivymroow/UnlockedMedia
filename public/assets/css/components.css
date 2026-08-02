@@ -4,24 +4,18 @@
   border-radius: var(--radius);
   overflow: hidden;
   background: var(--surface);
-  transition: transform var(--transition), box-shadow var(--transition);
+  transition: box-shadow var(--transition-fast);
   position: relative;
   aspect-ratio: 2/3;
 }
-.card:hover {
-  transform: scale(1.05);
-  z-index: 10;
-  box-shadow: var(--shadow-lg);
-}
-.card:hover .card-info { opacity: 1; transform: translateY(0); }
+.card:hover { z-index: 10; box-shadow: var(--shadow-lg); }
+.card:hover .card-info { opacity: 1; }
 .card-poster {
   width: 100%;
   height: 100%;
   object-fit: cover;
   background: var(--surface);
-  transition: transform var(--transition-slow);
 }
-.card:hover .card-poster { transform: scale(1.08); }
 .card-placeholder {
   width: 100%;
   height: 100%;
@@ -40,8 +34,6 @@
   padding: 12px;
   background: linear-gradient(transparent, rgba(0,0,0,.9));
   opacity: 0;
-  transform: translateY(8px);
-  transition: var(--transition);
 }
 .card-title { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .card-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
@@ -182,7 +174,7 @@
   justify-content: center;
   padding: 20px;
 }
-.modal-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.7); backdrop-filter: var(--blur); }
+.modal-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.8); }
 .modal-content {
   position: relative;
   background: var(--surface-elevated);

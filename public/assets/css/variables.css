@@ -26,7 +26,7 @@
   --transition-fast: 150ms ease;
   --transition: 250ms ease;
   --transition-slow: 400ms cubic-bezier(.4,0,.2,1);
-  --blur: blur(20px);
+  --blur: blur(12px);
   --max-width: 1440px;
   --header-height: 64px;
 }

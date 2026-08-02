@@ -14,7 +14,7 @@ header {
   transition: background var(--transition);
 }
 
-header.scrolled { background: rgba(0,0,0,.95); backdrop-filter: var(--blur); }
+header.scrolled { background: rgba(0,0,0,.95); }
 
 .header-left { display: flex; align-items: center; gap: 24px; flex-shrink: 0; }
 
