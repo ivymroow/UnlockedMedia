@@ -102,12 +102,12 @@ async function L(){
   try{
     if(token){(async()=>{try{const[wl,cw,wd]=await Promise.all([api('GET','/api/watchlist/list'),api('GET','/api/progress/list?status=watching'),api('GET','/api/progress/list?status=watched')]);if(wl?.length){qs('#main').insertAdjacentHTML('beforeend',sectionHTML('My List',wl.map(i=>({id:i.item_id,title:i.title,poster:i.poster,year:null,type:i.type}))));G('sgMylist',wl)}if(cw?.length){qs('#main').insertAdjacentHTML('afterbegin',sectionHTML('Continue Watching',cw.map(i=>({id:i.item_id,title:i.title,poster:i.poster,year:null,type:i.type,progress:i.watched&&i.duration?i.watched/i.duration:0}))))}if(wd?.length){qs('#main').insertAdjacentHTML('beforeend',sectionHTML('Watched',wd.map(i=>({id:i.item_id,title:i.title,poster:i.poster,year:null,type:i.type}))))}}catch{}})()}
     const[a,b,c]=await Promise.all([api('GET','/api/trending'),api('GET','/api/popular'),api('GET','/api/popular?type=tv')])
-    qs('#HL').outerHTML=''
-    if(a.length)qs('#main').appendChild(el('section',{cls:'section'},el('h2',{cls:'section-title',text:'Trending'}),el('div',{cls:'grid',id:'g0'})))&&G('g0',a)
-    if(b.length)qs('#main').appendChild(el('section',{cls:'section'},el('h2',{cls:'section-title',text:'Popular Movies'}),el('div',{cls:'grid',id:'g1'})))&&G('g1',b)
-    if(c.length)qs('#main').appendChild(el('section',{cls:'section'},el('h2',{cls:'section-title',text:'Popular Shows'}),el('div',{cls:'grid',id:'g2'})))&&G('g2',c)
-    if(!a.length&&!b.length&&!c.length)qs('#main').innerHTML='<div class="loading-screen"><p>No backend connected. Try searching.</p></div>'
-  }catch(e){qs('#HL').outerHTML='<div class="error-view"><p>'+esc(e.message)+'</p></div>'}
+    const m=qs('#main');m.innerHTML=''
+    if(a.length)m.appendChild(el('section',{cls:'section'},el('h2',{cls:'section-title',text:'Trending'}),el('div',{cls:'grid',id:'g0'})))&&G('g0',a)
+    if(b.length)m.appendChild(el('section',{cls:'section'},el('h2',{cls:'section-title',text:'Popular Movies'}),el('div',{cls:'grid',id:'g1'})))&&G('g1',b)
+    if(c.length)m.appendChild(el('section',{cls:'section'},el('h2',{cls:'section-title',text:'Popular Shows'}),el('div',{cls:'grid',id:'g2'})))&&G('g2',c)
+    if(!a.length&&!b.length&&!c.length)m.innerHTML='<div class="loading-screen"><p>No backend connected. Try searching.</p></div>'
+  }catch(e){qs('#main').innerHTML='<div class="error-view"><p>'+esc(e.message)+'</p></div>'}
 }
 
 function el(tag,opts={}){
