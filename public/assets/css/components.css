@@ -4,11 +4,15 @@
   border-radius: var(--radius);
   overflow: hidden;
   background: var(--surface);
-  transition: box-shadow var(--transition-fast);
+  transition: transform .15s ease, box-shadow .15s ease;
   position: relative;
   aspect-ratio: 2/3;
 }
-.card:hover { z-index: 10; box-shadow: var(--shadow-lg); }
+.card:hover {
+  transform: scale(1.03);
+  z-index: 10;
+  box-shadow: var(--shadow-lg);
+}
 .card:hover .card-info { opacity: 1; }
 .card-poster {
   width: 100%;
