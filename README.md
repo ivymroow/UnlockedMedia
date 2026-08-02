@@ -47,7 +47,8 @@ Supabase variables are only required for auth, watch progress, and watchlist fea
 1. Push this repository to GitHub.
 2. Create a Render Blueprint from `render.yaml`.
 3. Set `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `CORS_ORIGINS`.
-4. Deploy the Docker web service.
+4. Run `database/schema.sql` in Supabase SQL editor.
+5. Deploy the Docker web service.
 
 The service exposes `/health` for Render health checks.
 

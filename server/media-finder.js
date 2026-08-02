@@ -282,6 +282,11 @@ function sendFile(file, req, res) {
     const parts = range.replace(/bytes=/, '').split('-');
     const start = parseInt(parts[0], 10);
     const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+    if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end >= fileSize || start > end) {
+      res.writeHead(416, { 'Content-Range': `bytes */${fileSize}` });
+      res.end();
+      return;
+    }
     const chunkSize = end - start + 1;
     res.writeHead(206, {
       'Content-Range': `bytes ${start}-${end}/${fileSize}`,

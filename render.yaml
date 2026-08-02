@@ -21,5 +21,9 @@ services:
         value: 8
       - key: STREAM_IDLE_MS
         value: 600000
+      - key: DOWNLOAD_TIMEOUT_MS
+        value: 480000
+      - key: DOWNLOAD_RETENTION_MS
+        value: 900000
       - key: FFMPEG_TIMEOUT_MS
         value: 30000

@@ -2,15 +2,16 @@ const express = require('express');
 const supabase = require('../database/supabase');
 const { requireUser } = require('../middleware/auth');
 const { asyncHandler } = require('../middleware/errors');
+const { requireBody } = require('../middleware/validation');
 
 const router = express.Router();
 
-router.post('/signup', asyncHandler(async (req, res) => {
+router.post('/signup', requireBody('username'), requireBody('password'), asyncHandler(async (req, res) => {
   const result = await supabase.signUp(req.body.username, req.body.password, req.body.email);
   res.json({ ok: true, user: result.user, token: result.token, refresh: result.refresh });
 }));
 
-router.post('/signin', asyncHandler(async (req, res) => {
+router.post('/signin', requireBody('username'), requireBody('password'), asyncHandler(async (req, res) => {
   const result = await supabase.signIn(req.body.username, req.body.password);
   res.json({ ok: true, user: result.user, token: result.token, refresh: result.refresh });
 }));

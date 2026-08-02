@@ -1,37 +1,49 @@
 const { createClient } = require('@supabase/supabase-js');
 const env = require('./config/env');
+const { cleanMediaItem, cleanString, cleanUsername } = require('./utils/sanitize');
 
 const sb = createClient(env.supabaseUrl, env.supabaseKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
 async function signUp(username, password, email) {
-  const userEmail = email || `${username}@webstreaming.local`;
+  const safeUsername = cleanUsername(username);
+  const safePassword = cleanString(password, 256);
+  const userEmail = cleanString(email, 320) || `${safeUsername}@webstreaming.local`;
+  if (!safeUsername) throw new Error('Username required');
+  if (safePassword.length < 6) throw new Error('Password must be at least 6 characters');
+
   const { data, error } = await sb.auth.admin.createUser({
-    email: userEmail, password, email_confirm: true,
-    user_metadata: { username },
+    email: userEmail, password: safePassword, email_confirm: true,
+    user_metadata: { username: safeUsername },
   });
   if (error) throw new Error(error.message);
-  await sb.auth.admin.updateUserById(data.user.id, { user_metadata: { username } });
+  await sb.auth.admin.updateUserById(data.user.id, { user_metadata: { username: safeUsername } });
 
-  // Auto-login after signup
-  const login = await sb.auth.signInWithPassword({ email: userEmail, password });
+  const login = await sb.auth.signInWithPassword({ email: userEmail, password: safePassword });
   if (login.error) throw new Error('Account created but login failed');
 
   return {
-    user: { id: login.data.user.id, username, email: userEmail },
+    user: { id: login.data.user.id, username: safeUsername, email: userEmail },
     token: login.data.session.access_token,
     refresh: login.data.session.refresh_token,
   };
 }
 
 async function signIn(username, password) {
-  const { data: users, error: listError } = await sb.auth.admin.listUsers();
-  if (listError) throw new Error('Auth error');
-  const user = users?.users?.find(u => u.user_metadata?.username === username);
-  if (!user) throw new Error('User not found');
+  const identifier = cleanUsername(username);
+  const safePassword = cleanString(password, 256);
+  if (!identifier || !safePassword) throw new Error('Username and password required');
 
-  const { data, error } = await sb.auth.signInWithPassword({ email: user.email, password });
+  let email = identifier.includes('@') ? identifier : `${identifier}@webstreaming.local`;
+  let { data, error } = await sb.auth.signInWithPassword({ email, password: safePassword });
+  if (error && !identifier.includes('@')) {
+    const users = await findUserByUsername(identifier);
+    if (users?.email && users.email !== email) {
+      email = users.email;
+      ({ data, error } = await sb.auth.signInWithPassword({ email, password: safePassword }));
+    }
+  }
   if (error) throw new Error(error.message);
 
   return {
@@ -39,6 +51,20 @@ async function signIn(username, password) {
     token: data.session.access_token,
     refresh: data.session.refresh_token,
   };
+}
+
+async function findUserByUsername(username) {
+  let page = 1;
+  const perPage = 100;
+  while (page <= 10) {
+    const { data, error } = await sb.auth.admin.listUsers({ page, perPage });
+    if (error) throw new Error('Auth error');
+    const user = data?.users?.find(item => item.user_metadata?.username === username);
+    if (user) return user;
+    if (!data?.users?.length || data.users.length < perPage) return null;
+    page += 1;
+  }
+  return null;
 }
 
 async function getUserFromToken(token) {
@@ -49,7 +75,8 @@ async function getUserFromToken(token) {
 
 /* Watch progress */
 async function saveProgress(userId, item) {
-  const { id, title, poster, type, season, episode, duration, watched, status } = item;
+  const { id, title, poster, type, season, episode, duration, watched, status } = cleanMediaItem(item);
+  if (!id) throw new Error('Media id required');
   const { data, error } = await sb.from('watch_progress').upsert({
     user_id: userId, item_id: id, title, poster, type,
     season: season || 0, episode: episode || 0,
@@ -80,7 +107,8 @@ async function listProgress(userId, status, limit = 20) {
 
 /* Watchlist */
 async function addToWatchlist(userId, item) {
-  const { id, title, poster, type } = item;
+  const { id, title, poster, type } = cleanMediaItem(item);
+  if (!id) throw new Error('Media id required');
   const { data, error } = await sb.from('watchlist').upsert({
     user_id: userId, item_id: id, title, poster, type,
   }, { onConflict: 'user_id,item_id', ignoreDuplicates: false }).select();

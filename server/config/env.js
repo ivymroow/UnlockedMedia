@@ -49,6 +49,8 @@ const env = {
   streamIdleMs: numberFromEnv('STREAM_IDLE_MS', 10 * 60_000),
   streamCleanupIntervalMs: numberFromEnv('STREAM_CLEANUP_INTERVAL_MS', 60_000),
   maxActiveStreams: numberFromEnv('MAX_ACTIVE_STREAMS', 8),
+  downloadTimeoutMs: numberFromEnv('DOWNLOAD_TIMEOUT_MS', 8 * 60_000),
+  downloadRetentionMs: numberFromEnv('DOWNLOAD_RETENTION_MS', 15 * 60_000),
   ffmpegTimeoutMs: numberFromEnv('FFMPEG_TIMEOUT_MS', 30_000),
   supabaseUrl: requireEnv('SUPABASE_URL') || 'http://localhost',
   supabaseKey: supabaseKey || 'development-placeholder',
