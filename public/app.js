@@ -110,12 +110,13 @@ async function L(){
   }catch(e){qs('#main').innerHTML='<div class="error-view"><p>'+esc(e.message)+'</p></div>'}
 }
 
-function el(tag,opts={}){
+function el(tag,opts={},...children){
   const e=document.createElement(tag)
   if(opts.cls)e.className=opts.cls
   if(opts.id)e.id=opts.id
   if(opts.text)e.textContent=opts.text
   if(opts.html)e.innerHTML=opts.html
+  children.forEach(c=>e.appendChild(c))
   return e
 }
 
