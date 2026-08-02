@@ -1,0 +1,57 @@
+const path = require('path');
+
+const isProduction = process.env.NODE_ENV === 'production';
+
+function parseList(value) {
+  return (value || '')
+    .split(',')
+    .map(item => item.trim())
+    .filter(Boolean);
+}
+
+function numberFromEnv(name, fallback) {
+  const raw = process.env[name];
+  if (!raw) return fallback;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function requireEnv(name) {
+  const value = process.env[name];
+  if (!value && isProduction) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return value || '';
+}
+
+function optionalEnv(name) {
+  return process.env[name] || '';
+}
+
+const supabaseKey = optionalEnv('SUPABASE_SERVICE_ROLE_KEY') || optionalEnv('SUPABASE_KEY');
+if (!supabaseKey && isProduction) {
+  throw new Error('Missing required environment variable: SUPABASE_SERVICE_ROLE_KEY');
+}
+
+const corsOrigins = parseList(process.env.CORS_ORIGINS);
+if (!corsOrigins.length && isProduction) {
+  throw new Error('Missing required environment variable: CORS_ORIGINS');
+}
+
+const env = {
+  nodeEnv: process.env.NODE_ENV || 'development',
+  isProduction,
+  port: numberFromEnv('PORT', 3000),
+  publicDir: path.join(__dirname, '..', '..', 'public'),
+  corsOrigins,
+  rateLimitWindowMs: numberFromEnv('RATE_LIMIT_WINDOW_MS', 60_000),
+  rateLimitMax: numberFromEnv('RATE_LIMIT_MAX', 180),
+  streamIdleMs: numberFromEnv('STREAM_IDLE_MS', 10 * 60_000),
+  streamCleanupIntervalMs: numberFromEnv('STREAM_CLEANUP_INTERVAL_MS', 60_000),
+  maxActiveStreams: numberFromEnv('MAX_ACTIVE_STREAMS', 8),
+  ffmpegTimeoutMs: numberFromEnv('FFMPEG_TIMEOUT_MS', 30_000),
+  supabaseUrl: requireEnv('SUPABASE_URL') || 'http://localhost',
+  supabaseKey: supabaseKey || 'development-placeholder',
+};
+
+module.exports = env;

@@ -1,11 +1,12 @@
 {
-  "name": "media-stream-app",
+  "name": "webstreaming",
   "version": "1.0.0",
   "private": true,
-  "description": "Media streaming application",
+  "description": "Lightweight self-hosted streaming platform",
   "scripts": {
     "start": "node server/index.js",
-    "dev": "node --watch server/index.js"
+    "dev": "node --watch server/index.js",
+    "check": "node --check server/index.js && node --check server/app.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.9",

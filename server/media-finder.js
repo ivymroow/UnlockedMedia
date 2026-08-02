@@ -1,6 +1,7 @@
 const axios = require('axios');
 const StreamEngine = require('s-engine');
 const cache = require('./cache');
+const env = require('./config/env');
 
 const os = require('os');
 const path = require('path');
@@ -186,6 +187,20 @@ async function searchSources(tmdbId, title, year, mediaType = 'movie', imdbId = 
 
 const streamPool = new Map();
 
+function cleanupStreams(force = false) {
+  const now = Date.now();
+  for (const [key, stream] of streamPool) {
+    const idle = now - (stream._lastUsed || 0);
+    const active = stream.downloadSpeed > 0 || stream.uploadSpeed > 0;
+    if (force || (!active && idle > env.streamIdleMs)) {
+      try { stream.destroy(); } catch {}
+      streamPool.delete(key);
+    }
+  }
+}
+
+setInterval(() => cleanupStreams(false), env.streamCleanupIntervalMs).unref();
+
 function getOrStart(link) {
   const hashMatch = link.match(/urn:btih:([a-fA-F0-9]+)/);
   const infoHash = hashMatch ? hashMatch[1].toLowerCase() : '';
@@ -201,6 +216,15 @@ function getOrStart(link) {
   if (cached) {
     cached._lastUsed = Date.now();
     return cached;
+  }
+
+  if (streamPool.size >= env.maxActiveStreams) cleanupStreams(false);
+  if (streamPool.size >= env.maxActiveStreams) {
+    const oldest = [...streamPool.entries()].sort((a, b) => (a[1]._lastUsed || 0) - (b[1]._lastUsed || 0))[0];
+    if (oldest) {
+      try { oldest[1].destroy(); } catch {}
+      streamPool.delete(oldest[0]);
+    }
   }
 
   let stream;
@@ -221,7 +245,7 @@ function getOrStart(link) {
     const check = () => {
       if (stream.destroyed) return;
       if (stream.downloadSpeed > 0 || stream.uploadSpeed > 0) { setTimeout(check, 30000); return; }
-      if (Date.now() - (stream._lastUsed || 0) > 600000) {
+      if (Date.now() - (stream._lastUsed || 0) > env.streamIdleMs) {
         try { stream.destroy(); } catch {}
         streamPool.delete(cacheKey);
       } else {
@@ -303,4 +327,4 @@ function getStats() {
   };
 }
 
-module.exports = { searchSources, getOrStart, waitForData, sendFile, getStats, client, makeLink, getVideo };
+module.exports = { searchSources, getOrStart, waitForData, sendFile, getStats, client, makeLink, getVideo, cleanupStreams };

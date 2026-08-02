@@ -1,9 +1,7 @@
 const { createClient } = require('@supabase/supabase-js');
+const env = require('./config/env');
 
-const SUPABASE_URL = process.env.SUPABASE_URL || 'https://nxpcbcccxswjfzquczjl.supabase.co';
-const SUPABASE_KEY = process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54cGNiY2NjeHN3amZ6cXVjempsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NTIxMTIwNiwiZXhwIjoyMTAwNzg3MjA2fQ.zg6e0XXCqU7t5PTmRYIcBGlCvbaPJQrYNiTJGhsmE3g';
-
-const sb = createClient(SUPABASE_URL, SUPABASE_KEY, {
+const sb = createClient(env.supabaseUrl, env.supabaseKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 

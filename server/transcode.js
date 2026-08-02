@@ -1,5 +1,6 @@
 const { spawn } = require('child_process');
 const path = require('path');
+const env = require('./config/env');
 
 // Try to find ffmpeg
 function findFfmpeg() {
@@ -30,6 +31,8 @@ async function transcodeStream(inputStream, req, res) {
 
   // Start FFmpeg: copy video, transcode audio to AAC, output fragmented MP4
   const ff = spawn(FFMPEG, [
+    '-nostdin',
+    '-threads', '1',
     '-i', 'pipe:0',
     '-c:v', 'copy',
     '-c:a', 'aac',
@@ -50,7 +53,7 @@ async function transcodeStream(inputStream, req, res) {
   let firstChunk = null;
   const gotFirst = new Promise(resolve => {
     ff.stdout.once('data', chunk => { firstChunk = chunk; resolve(true); });
-    setTimeout(() => resolve(false), 30000);
+    setTimeout(() => resolve(false), env.ffmpegTimeoutMs);
   });
 
   const ok = await gotFirst;
@@ -91,6 +94,8 @@ async function transcodeBuffer(input) {
   const { spawn } = require('child_process');
   return new Promise((resolve, reject) => {
     const ff = spawn(FFMPEG, [
+      '-nostdin',
+      '-threads', '1',
       '-i', 'pipe:0',
       '-c:v', 'copy',
       '-c:a', 'aac',
@@ -123,6 +128,8 @@ function transcodeFile(inputPath, outputPath) {
   const { spawn } = require('child_process');
   return new Promise((resolve, reject) => {
     const ff = spawn(FFMPEG, [
+      '-nostdin',
+      '-threads', '1',
       '-i', inputPath, '-c:v', 'copy', '-c:a', 'aac', '-b:a', '128k', '-ac', '2',
       '-f', 'mp4', '-movflags', 'frag_keyframe+empty_moov',
       '-preset', 'ultrafast', '-loglevel', 'error', outputPath,
@@ -144,6 +151,8 @@ function transcodeStreamToFile(inputStream, outputPath) {
   return new Promise((resolve, reject) => {
     const out = fs.createWriteStream(outputPath);
     const ff = spawn(FFMPEG, [
+      '-nostdin',
+      '-threads', '1',
       '-i', 'pipe:0', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '128k', '-ac', '2',
       '-f', 'mp4', '-movflags', 'frag_keyframe+empty_moov',
       '-preset', 'ultrafast', '-loglevel', 'error', 'pipe:1',
