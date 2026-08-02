@@ -44,7 +44,7 @@ async function srcs(title,year,imdbId){const k=`s:${imdbId||title}`;const c=sess
 function qs(s){return document.querySelector(s)}
 function esc(s){if(!s)return'';const d=document.createElement('div');d.textContent=s;return d.innerHTML}
 function img(p){return p||''}
-function fmt(s){if(!s)return'';const m=s.match(/^[\d.]+/);if(!m)return s;const n=parseFloat(m[0]);return s.includes('GB')?`${(n*1024).toFixed(0)} MB`:`${Math.round(n)} MB`}
+function fmt(s){if(!s)return'';const m=s.match(/^[\d.]+/);if(!m)return s;const n=parseFloat(m[0]);if(s.includes('GB')&&n>=1)return`${n.toFixed(1)} GB`;if(s.includes('GB'))return`${(n*1024).toFixed(0)} MB`;if(s.includes('MB')&&n>=1000)return`${(n/1024).toFixed(1)} GB`;return`${Math.round(n)} MB`}
 function title(i){return i.title||i.name||'Unknown'}
 function year(i){return i.year||''}
 function rating(i){return i.rating||i.vote_average?(i.rating||i.vote_average).toFixed(1):null}
@@ -129,8 +129,7 @@ async function loadEpisodeSources(id,season,episode){
   if(!srcs||!srcs.length){list.innerHTML=`<p style="color:var(--text3);font-size:14px;padding:8px 0">No sources for ${title} ${q}.</p>`;return}
   srcs.sort((a,b)=>(b.seeds||0)-(a.seeds||0))
   state._sources=srcs
-  const alive=srcs.filter(s=>(s.seeds||0)>0||(s.peers||0)>0)
-  list.innerHTML=`${alive.length>0?`<button class="play-btn" style="width:100%;justify-content:center;margin-bottom:10px" onclick="playBest()">▶ Play Best Source</button>`:''}${srcs.map(src=>{const dead=(src.seeds||0)===0&&(src.peers||0)===0;return`<div class="source-item${dead?' dead-source':''}"><div class="source-info"><span class="source-quality">${src.quality}</span><span class="source-size">${fmt(src.size)}</span><span class="source-seeds">⬆ ${src.seeds||0}</span><span class="source-peers">⬇ ${src.peers||0}</span><span style="color:var(--text3);font-size:11px">${src.provider||''}</span></div><button class="source-play" onclick="playSource('${src.hash}',${src.fileIndex||0},'${esc(title)} ${q}')">${dead?'⚠ Try':'▶ Play'}</button></div>`}).join('')}`
+  list.innerHTML=srcs.map(src=>{const dead=(src.seeds||0)===0&&(src.peers||0)===0;return`<div class="source-item${dead?' dead-source':''}"><div class="source-info"><span class="source-quality">${src.quality}</span><span class="source-size">${fmt(src.size)}</span><span class="source-seeds">⬆ ${src.seeds||0}</span><span class="source-peers">⬇ ${src.peers||0}</span><span style="color:var(--text3);font-size:11px">${src.provider||''}</span></div><button class="source-play" onclick="playSource('${src.hash}',${src.fileIndex||0},'${esc(title)} ${q}')">${dead?'⚠ Try':'▶ Play'}</button></div>`}).join('')
 }
 
 function RD(d,srces,episodes){
@@ -153,8 +152,7 @@ function RD(d,srces,episodes){
     const list=qs('#sl')
     if(!srces||!srces.length){if(list)list.innerHTML='<p style="color:var(--text3);font-size:14px;padding:8px 0">No sources found.</p>';return}
     state._sources=srces
-    const alive=srces.filter(s=>(s.seeds||0)>0||(s.peers||0)>0)
-    if(list)list.innerHTML=`${alive.length>0?`<button class="play-btn" style="width:100%;justify-content:center;margin-bottom:10px" onclick="playBest()">▶ Play Best Source</button>`:''}${srces.map(s=>{const dead=(s.seeds||0)===0&&(s.peers||0)===0;return`<div class="source-item${dead?' dead-source':''}"><div class="source-info"><span class="source-quality">${s.quality}</span><span class="source-size">${fmt(s.size)}</span><span class="source-seeds">⬆ ${s.seeds||0}</span><span class="source-peers">⬇ ${s.peers||0}</span><span style="color:var(--text3);font-size:11px">${s.provider||''}</span></div><button class="source-play" onclick="playSource('${s.hash}',${s.fileIndex||0},'${esc(t)}')">${dead?'⚠ Try':'▶ Play'}</button></div>`}).join('')}`
+    if(list)list.innerHTML=srces.map(s=>{const dead=(s.seeds||0)===0&&(s.peers||0)===0;return`<div class="source-item${dead?' dead-source':''}"><div class="source-info"><span class="source-quality">${s.quality}</span><span class="source-size">${fmt(s.size)}</span><span class="source-seeds">⬆ ${s.seeds||0}</span><span class="source-peers">⬇ ${s.peers||0}</span><span style="color:var(--text3);font-size:11px">${s.provider||''}</span></div><button class="source-play" onclick="playSource('${s.hash}',${s.fileIndex||0},'${esc(t)}')">${dead?'⚠ Try':'▶ Play'}</button></div>`}).join('')
   }
 }
 
