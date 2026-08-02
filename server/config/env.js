@@ -29,14 +29,7 @@ function optionalEnv(name) {
 }
 
 const supabaseKey = optionalEnv('SUPABASE_SERVICE_ROLE_KEY') || optionalEnv('SUPABASE_KEY');
-if (!supabaseKey && isProduction) {
-  throw new Error('Missing required environment variable: SUPABASE_SERVICE_ROLE_KEY');
-}
-
 const corsOrigins = parseList(process.env.CORS_ORIGINS);
-if (!corsOrigins.length && isProduction) {
-  throw new Error('Missing required environment variable: CORS_ORIGINS');
-}
 
 const env = {
   nodeEnv: process.env.NODE_ENV || 'development',
