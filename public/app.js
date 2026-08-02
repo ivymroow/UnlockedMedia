@@ -180,10 +180,6 @@ function RD(d,srces,episodes){
     if(list)list.innerHTML=srces.map(s=>{const dead=(s.seeds||0)===0&&(s.peers||0)===0;return'<div class="source-item'+(dead?' dead-source':'')+'"><div class="source-info"><span class="source-quality">'+s.quality+'</span><span class="source-size">'+fmt(s.size)+'</span><span class="source-seeds">⬆ '+(s.seeds||0)+'</span><span class="source-peers">⬇ '+(s.peers||0)+'</span><span style="color:var(--text-muted);font-size:11px">'+(s.provider||'')+'</span></div><button class="source-play" onclick="playSource(\''+s.hash+'\','+(s.fileIndex||0)+',\''+esc(t)+'\')">'+(dead?'⚠ Try':'▶ Play')+'</button></div>'}).join('')
   }
 
-  // Backend-only: force sources section for movies that might be missing
-  if(!srces||!srces.length){
-    if(!epHTML&&!qs('#sl')){const dDiv=qs('.detail-info');if(dDiv)dDiv.insertAdjacentHTML('beforeend','<div class="sources-section"><div class="sources-title">Sources</div><div class="sources-list" id="sl"></div></div>')}
-  }
 }
 
 async function toggleWatchlist(){
