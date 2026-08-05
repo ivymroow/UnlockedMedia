@@ -8,12 +8,7 @@
   position: relative;
   aspect-ratio: 2/3;
 }
-.card:hover {
-  transform: scale(1.03);
-  z-index: 10;
-  box-shadow: var(--shadow-lg);
-}
-.card:hover .card-info { opacity: 1; }
+.card:hover { z-index: 10; box-shadow: var(--shadow-lg); }
 .card-poster {
   width: 100%;
   height: 100%;
@@ -35,9 +30,8 @@
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 12px;
+  padding: 10px;
   background: linear-gradient(transparent, rgba(0,0,0,.9));
-  opacity: 0;
 }
 .card-title { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .card-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
