@@ -10,7 +10,7 @@ const router = express.Router();
 
 function uniqueSources(items) {
   const seen = new Set();
-  return items.filter(item => item && item.hash && (seen.has(item.hash) ? false : seen.add(item.hash)));
+  return items.filter(item => item && (seen.has(item.hash || item.embedUrl) ? false : seen.add(item.hash || item.embedUrl)));
 }
 
 router.get('/status', (req, res) => {

@@ -153,7 +153,7 @@ async function loadEpisodeSources(id,season,episode){
   if(!srcs||!srcs.length){list.innerHTML='<p style="color:var(--text-muted);font-size:14px;padding:8px 0">No sources for '+esc(title)+' '+q+'.</p>';return}
   srcs.sort((a,b)=>(b.seeds||0)-(a.seeds||0))
   state._sources=srcs
-  list.innerHTML=srcs.map(src=>{const dead=(src.seeds||0)===0&&(src.peers||0)===0;const eu=src.embedUrl?',null,\''+esc(src.embedUrl)+'\'':'';return'<div class="source-item'+(dead?' dead-source':'')+'"><div class="source-info"><span class="source-quality">'+src.quality+'</span><span class="source-size">'+fmt(src.size)+'</span><span class="source-seeds">⬆ '+(src.seeds||0)+'</span><span class="source-peers">⬇ '+(src.peers||0)+'</span><span style="color:var(--text-muted);font-size:11px">'+(src.provider||'')+'</span></div><button class="source-play" onclick="playSource(\''+src.hash+'\','+(src.fileIndex||0)+',\''+esc(title)+' '+q+'\''+eu+')">'+(dead?'⚠ Try':'▶ Play')+'</button></div>'}).join('')
+  list.innerHTML=srcs.map(src=>{const dead=(src.seeds||0)===0&&(src.peers||0)===0;const eu=src.embedUrl?',\''+esc(src.embedUrl)+'\'':'';return'<div class="source-item'+(dead?' dead-source':'')+'"><div class="source-info"><span class="source-quality">'+src.quality+'</span><span class="source-size">'+fmt(src.size)+'</span><span class="source-seeds">⬆ '+(src.seeds||0)+'</span><span class="source-peers">⬇ '+(src.peers||0)+'</span><span style="color:var(--text-muted);font-size:11px">'+(src.provider||'')+'</span></div><button class="source-play" onclick="playSource(\''+src.hash+'\','+(src.fileIndex||0)+',\''+esc(title)+' '+q+'\''+eu+')">'+(dead?'⚠ Try':'▶ Play')+'</button></div>'}).join('')
 }
 
 function RD(d,srces,episodes){
@@ -177,7 +177,7 @@ function RD(d,srces,episodes){
     const list=qs('#sl')
     if(!srces||!srces.length){if(list)list.innerHTML='<p style="color:var(--text-muted);font-size:14px;padding:8px 0">No sources found.</p>';return}
     state._sources=srces
-    if(list)list.innerHTML=srces.map(s=>{const dead=(s.seeds||0)===0&&(s.peers||0)===0;const eu=s.embedUrl?',null,\''+esc(s.embedUrl)+'\'':'';return'<div class="source-item'+(dead?' dead-source':'')+'"><div class="source-info"><span class="source-quality">'+s.quality+'</span><span class="source-size">'+fmt(s.size)+'</span><span class="source-seeds">⬆ '+(s.seeds||0)+'</span><span class="source-peers">⬇ '+(s.peers||0)+'</span><span style="color:var(--text-muted);font-size:11px">'+(s.provider||'')+'</span></div><button class="source-play" onclick="playSource(\''+s.hash+'\','+(s.fileIndex||0)+',\''+esc(t)+'\''+eu+')">'+(dead?'⚠ Try':'▶ Play')+'</button></div>'}).join('')
+    if(list)list.innerHTML=srces.map(s=>{const dead=(s.seeds||0)===0&&(s.peers||0)===0;    const eu=s.embedUrl?',\''+esc(s.embedUrl)+'\'':'';return'<div class="source-item'+(dead?' dead-source':'')+'"><div class="source-info"><span class="source-quality">'+s.quality+'</span><span class="source-size">'+fmt(s.size)+'</span><span class="source-seeds">⬆ '+(s.seeds||0)+'</span><span class="source-peers">⬇ '+(s.peers||0)+'</span><span style="color:var(--text-muted);font-size:11px">'+(s.provider||'')+'</span></div><button class="source-play" onclick="playSource(\''+s.hash+'\','+(s.fileIndex||0)+',\''+esc(t)+'\''+eu+')">'+(dead?'⚠ Try':'▶ Play')+'</button></div>'}).join('')
   }
 
 }

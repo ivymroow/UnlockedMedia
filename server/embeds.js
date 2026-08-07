@@ -20,7 +20,7 @@ async function getEmbeds(imdbId, tmdbId, season, episode) {
   }
 
   // Return all as working embeds
-  return embeds.map(e => ({ provider: e.name, embedUrl: e.url, hash: '', quality: 'HD', seeds: 99, peers: 0, size: '', fileIndex: 0 }));
+  return embeds.map((e, i) => ({ provider: e.name, embedUrl: e.url, hash: 'embed-' + i, quality: 'HD', seeds: 99, peers: 0, size: '', fileIndex: 0 }));
 }
 
 module.exports = { getEmbeds };
