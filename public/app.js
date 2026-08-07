@@ -131,7 +131,6 @@ async function LD(){
   const{id,type,title:t,year:y,season:s,episode:ep}=state.data
   const tHint=t||'',yHint=y||''
   if(s&&ep){selectedSeason=s;selectedEpisode=ep}
-  if(type==='movie'&&state.mode==='backend'){(async()=>{try{const src=await api('GET','/api/movie/'+id+'/sources?title='+encodeURIComponent(tHint)+'&year='+yHint+'&type='+type);const best=src?.sort((a,b)=>(b.seeds||0)-(a.seeds||0))[0];if(best?.hash)fetch((state.backendUrl||'')+'/api/download',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({hash:best.hash,fileIndex:best.fileIndex||0})}).catch(()=>{})}catch{}})()}
   try{
     const d=await api('GET','/api/movie/'+id+'?type='+type+'&title='+encodeURIComponent(tHint)+'&year='+yHint)
     state.data._title=d.title||'';state.data._year=d.year||'';state.data._poster=d.poster||''
@@ -153,7 +152,7 @@ async function loadEpisodeSources(id,season,episode){
   if(!srcs||!srcs.length){list.innerHTML='<p style="color:var(--text-muted);font-size:14px;padding:8px 0">No sources for '+esc(title)+' '+q+'.</p>';return}
   srcs.sort((a,b)=>(b.seeds||0)-(a.seeds||0))
   state._sources=srcs
-  list.innerHTML=srcs.map(src=>{const isEmbed=!!src.embedUrl;const eu=isEmbed?',\''+esc(src.embedUrl)+'\'':'';const dead=!isEmbed&&(src.seeds||0)===0&&(src.peers||0)===0;return'<div class="source-item'+(dead?' dead-source':'')+'" id="src-'+src.hash+'"><div class="source-info"><span class="source-quality">'+src.quality+'</span>'+(!isEmbed?'<span class="source-size">'+fmt(src.size)+'</span><span class="source-seeds">⬆ '+(src.seeds||0)+'</span>':'')+'<span style="color:var(--text-muted);font-size:11px">'+(src.provider||'')+'</span></div><button class="source-play" style="'+(isEmbed?'background:#4ade80;color:#000':'')+'" onclick="playSource(\''+src.hash+'\','+(src.fileIndex||0)+',\''+esc(title)+' '+q+'\''+eu+')">'+(isEmbed?'▶ Play':'▶')+'</button></div>'}).join('')
+  list.innerHTML=srcs.map(src=>{const eu=',\''+esc(src.embedUrl)+'\'';return'<div class="source-item" id="src-'+src.hash+'"><div class="source-info"><span class="source-quality">HD</span><span style="color:var(--text-muted);font-size:11px">'+(src.provider||'')+'</span></div><button class="source-play" style="background:#4ade80;color:#000" onclick="playSource(\''+src.hash+'\',0,\''+esc(title)+' '+q+'\''+eu+')">▶ Play</button></div>'}).join('')
   if(state.data?._playHash){const ph=state.data._playHash;state.data._playHash=null;setTimeout(()=>{const b=qs('#src-'+ph+' .source-play');if(b)b.click()},100)}
 }
 
@@ -178,7 +177,7 @@ function RD(d,srces,episodes){
     const list=qs('#sl')
     if(!srces||!srces.length){if(list)list.innerHTML='<p style="color:var(--text-muted);font-size:14px;padding:8px 0">No sources found.</p>';return}
     state._sources=srces
-    if(list)list.innerHTML=srces.map(s=>{const isEmbed=!!s.embedUrl;const eu=isEmbed?',\''+esc(s.embedUrl)+'\'':'';const dead=!isEmbed&&(s.seeds||0)===0&&(s.peers||0)===0;return'<div class="source-item'+(dead?' dead-source':'')+'" id="src-'+s.hash+'"><div class="source-info"><span class="source-quality">'+s.quality+'</span>'+(!isEmbed?'<span class="source-size">'+fmt(s.size)+'</span><span class="source-seeds">⬆ '+(s.seeds||0)+'</span>':'')+'<span style="color:var(--text-muted);font-size:11px">'+(s.provider||'')+'</span></div><button class="source-play" style="'+(isEmbed?'background:#4ade80;color:#000':'')+'" onclick="playSource(\''+s.hash+'\','+(s.fileIndex||0)+',\''+esc(t)+'\''+eu+')">'+(isEmbed?'▶ Play':'▶')+'</button></div>'}).join('')
+    if(list)list.innerHTML=srces.map(s=>{const eu=',\''+esc(s.embedUrl)+'\'';return'<div class="source-item" id="src-'+s.hash+'"><div class="source-info"><span class="source-quality">HD</span><span style="color:var(--text-muted);font-size:11px">'+(s.provider||'')+'</span></div><button class="source-play" style="background:#4ade80;color:#000" onclick="playSource(\''+s.hash+'\',0,\''+esc(t)+'\''+eu+')">▶ Play</button></div>'}).join('')
     if(state.data?._playHash){const ph=state.data._playHash;state.data._playHash=null;setTimeout(()=>{const b=qs('#src-'+ph+' .source-play');if(b)b.click()},100)}
   }
 
@@ -263,6 +262,8 @@ async function streamAndPlay(hash,fi,dlId,ps,pl){
     const blob=new Blob(chunks,{type:'video/mp4'}),video=qs('#player')
     qs('#pl').style.display='none';video.style.display='block';video.muted=false;video.volume=1
     video.src=URL.createObjectURL(blob)
+    const ts=parseInt(new URLSearchParams(window.location.hash.slice(1)).get('t'))
+    if(ts&&ts>0)video.currentTime=ts
     initPlayer(video,base,infoHash)
     if(video._enableSeek)video._enableSeek()
     try{const sr=await fetch(base+'/api/subtitles/'+infoHash+'/list'),sd=await sr.json();if(sd.tracks?.length){const vr=await fetch(base+'/api/subtitles/'+infoHash+'/0'),vtt=await vr.text(),sb=new Blob([vtt],{type:'text/vtt'}),url=URL.createObjectURL(sb),tr=document.createElement('track');tr.kind='captions';tr.label=sd.tracks[0].name||'English';tr.srclang='en';tr.src=url;tr.id='preSub';video.appendChild(tr);for(let i=0;i<video.textTracks.length;i++)video.textTracks[i].mode=i===video.textTracks.length-1?'showing':'hidden'}}catch{}

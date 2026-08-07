@@ -1,20 +1,13 @@
 const express = require('express');
 const metadata = require('../services/metadata');
-const torrent = require('../services/torrent');
-const sourceFinder = require('../source-finder');
 const embeds = require('../embeds');
 const { asyncHandler } = require('../middleware/errors');
 const { requireQuery } = require('../middleware/validation');
 
 const router = express.Router();
 
-function uniqueSources(items) {
-  const seen = new Set();
-  return items.filter(item => item && (seen.has(item.hash || item.embedUrl) ? false : seen.add(item.hash || item.embedUrl)));
-}
-
 router.get('/status', (req, res) => {
-  res.json({ mode: 'backend', ...torrent.getStats() });
+  res.json({ mode: 'backend' });
 });
 
 router.get('/search', requireQuery('q'), asyncHandler(async (req, res) => {
@@ -42,19 +35,8 @@ router.get('/movie/:id', asyncHandler(async (req, res) => {
 }));
 
 router.get('/movie/:id/sources', asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  const { title, year } = req.query;
-  const [addon, searched, embedList] = await Promise.allSettled([
-    sourceFinder.findMovie(id),
-    torrent.searchSources(id, title || id, Number(year) || 0, 'movie', id),
-    embeds.getEmbeds(id),
-  ]);
-
-  res.json(uniqueSources([
-    ...(embedList.status === 'fulfilled' ? embedList.value : []),
-    ...(addon.status === 'fulfilled' ? addon.value : []),
-    ...(searched.status === 'fulfilled' ? searched.value : []),
-  ]));
+  const embedList = await embeds.getEmbeds(req.params.id);
+  res.json(embedList);
 }));
 
 router.get('/show/:id/episodes', asyncHandler(async (req, res) => {
@@ -63,21 +45,10 @@ router.get('/show/:id/episodes', asyncHandler(async (req, res) => {
 
 router.get('/show/:id/sources', asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { title, year, season, episode } = req.query;
+  const { season, episode } = req.query;
   if (!season || !episode) return res.json([]);
-
-  const episodeQuery = `${title || ''} S${String(season).padStart(2, '0')}E${String(episode).padStart(2, '0')}`;
-  const [addon, searched, embedList] = await Promise.allSettled([
-    sourceFinder.findEpisode(id, Number(season), Number(episode)),
-    torrent.searchSources(id, episodeQuery, Number(year) || 0, 'tv', id),
-    embeds.getEmbeds(id, null, Number(season), Number(episode)),
-  ]);
-
-  res.json(uniqueSources([
-    ...(embedList.status === 'fulfilled' ? embedList.value : []),
-    ...(addon.status === 'fulfilled' ? addon.value : []),
-    ...(searched.status === 'fulfilled' ? searched.value : []),
-  ]));
+  const embedList = await embeds.getEmbeds(id, null, Number(season), Number(episode));
+  res.json(embedList);
 }));
 
 router.get('/movie/:id/embeds', asyncHandler(async (req, res) => {
