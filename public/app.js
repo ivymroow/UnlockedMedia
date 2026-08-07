@@ -229,7 +229,7 @@ async function playSource(hash,fi,title,embedUrl){
   streamAndPlay(hash,fi||0,null,ps,pl)
 }
 
-function ifr(url,title){return'<div class="player-container"><button class="player-back" onclick="cp()"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg> Back</button><div class="player-wrapper" style="background:#000"><iframe src="'+url+'" style="width:100%;height:100%;border:none" allow="autoplay;fullscreen" allowfullscreen></iframe></div></div>'}
+function ifr(url,title){document.title=title+' - web-streaming';return'<div class="player-container"><button class="player-back" onclick="cp()"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg> Back</button><div class="player-wrapper"><iframe src="'+url+'" allow="autoplay;encrypted-media;fullscreen" allowfullscreen referrerpolicy="no-referrer" style="position:absolute;inset:0;width:100%;height:100%;border:none;background:#000"></iframe></div></div>'}
 
 async function streamAndPlay(hash,fi,dlId,ps,pl){
   const base=state.backendUrl||'',infoHash=hash
