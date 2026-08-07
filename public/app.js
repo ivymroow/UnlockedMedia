@@ -56,7 +56,7 @@ function navigate(v,d){
   if(v==='search')h='#q='+encodeURIComponent(state.query||'')
   else if(v==='detail'){
     const ep=selectedEpisode?'&s='+selectedSeason+'&e='+selectedEpisode:''
-    h='#id='+(d?.id||'')+(d?.type==='tv'?'&type=tv':'')+(d?.title?'&t='+encodeURIComponent(d.title):'')+(d?.year?'&y='+d.year:'')+ep
+    h='#id='+(d?.id||'')+(d?.type==='tv'?'&type=tv':'')+(d?.title?'&t='+encodeURIComponent(d.title):'')+(d?.year?'&y='+d.year:'')+ep+(d?._playHash?'&hash='+d._playHash:'')
   }else if(v==='profile')h='#profile'
   history.replaceState(null,'',h);render()
 }
@@ -153,7 +153,8 @@ async function loadEpisodeSources(id,season,episode){
   if(!srcs||!srcs.length){list.innerHTML='<p style="color:var(--text-muted);font-size:14px;padding:8px 0">No sources for '+esc(title)+' '+q+'.</p>';return}
   srcs.sort((a,b)=>(b.seeds||0)-(a.seeds||0))
   state._sources=srcs
-  list.innerHTML=srcs.map(src=>{const isEmbed=!!src.embedUrl;const eu=isEmbed?',\''+esc(src.embedUrl)+'\'':'';const dead=!isEmbed&&(src.seeds||0)===0&&(src.peers||0)===0;return'<div class="source-item'+(dead?' dead-source':'')+'"><div class="source-info"><span class="source-quality">'+src.quality+'</span>'+(!isEmbed?'<span class="source-size">'+fmt(src.size)+'</span><span class="source-seeds">⬆ '+(src.seeds||0)+'</span>':'')+'<span style="color:var(--text-muted);font-size:11px">'+(src.provider||'')+'</span></div><button class="source-play" style="'+(isEmbed?'background:#4ade80;color:#000':'')+'" onclick="playSource(\''+src.hash+'\','+(src.fileIndex||0)+',\''+esc(title)+' '+q+'\''+eu+')">'+(isEmbed?'▶ Play':'▶')+'</button></div>'}).join('')
+  list.innerHTML=srcs.map(src=>{const isEmbed=!!src.embedUrl;const eu=isEmbed?',\''+esc(src.embedUrl)+'\'':'';const dead=!isEmbed&&(src.seeds||0)===0&&(src.peers||0)===0;return'<div class="source-item'+(dead?' dead-source':'')+'" id="src-'+src.hash+'"><div class="source-info"><span class="source-quality">'+src.quality+'</span>'+(!isEmbed?'<span class="source-size">'+fmt(src.size)+'</span><span class="source-seeds">⬆ '+(src.seeds||0)+'</span>':'')+'<span style="color:var(--text-muted);font-size:11px">'+(src.provider||'')+'</span></div><button class="source-play" style="'+(isEmbed?'background:#4ade80;color:#000':'')+'" onclick="playSource(\''+src.hash+'\','+(src.fileIndex||0)+',\''+esc(title)+' '+q+'\''+eu+')">'+(isEmbed?'▶ Play':'▶')+'</button></div>'}).join('')
+  if(state.data?._playHash){const ph=state.data._playHash;state.data._playHash=null;setTimeout(()=>{const b=qs('#src-'+ph+' .source-play');if(b)b.click()},100)}
 }
 
 function RD(d,srces,episodes){
@@ -177,7 +178,8 @@ function RD(d,srces,episodes){
     const list=qs('#sl')
     if(!srces||!srces.length){if(list)list.innerHTML='<p style="color:var(--text-muted);font-size:14px;padding:8px 0">No sources found.</p>';return}
     state._sources=srces
-    if(list)list.innerHTML=srces.map(s=>{const isEmbed=!!s.embedUrl;const eu=isEmbed?',\''+esc(s.embedUrl)+'\'':'';const dead=!isEmbed&&(s.seeds||0)===0&&(s.peers||0)===0;return'<div class="source-item'+(dead?' dead-source':'')+'"><div class="source-info"><span class="source-quality">'+s.quality+'</span>'+(!isEmbed?'<span class="source-size">'+fmt(s.size)+'</span><span class="source-seeds">⬆ '+(s.seeds||0)+'</span>':'')+'<span style="color:var(--text-muted);font-size:11px">'+(s.provider||'')+'</span></div><button class="source-play" style="'+(isEmbed?'background:#4ade80;color:#000':'')+'" onclick="playSource(\''+s.hash+'\','+(s.fileIndex||0)+',\''+esc(t)+'\''+eu+')">'+(isEmbed?'▶ Play':'▶')+'</button></div>'}).join('')
+    if(list)list.innerHTML=srces.map(s=>{const isEmbed=!!s.embedUrl;const eu=isEmbed?',\''+esc(s.embedUrl)+'\'':'';const dead=!isEmbed&&(s.seeds||0)===0&&(s.peers||0)===0;return'<div class="source-item'+(dead?' dead-source':'')+'" id="src-'+s.hash+'"><div class="source-info"><span class="source-quality">'+s.quality+'</span>'+(!isEmbed?'<span class="source-size">'+fmt(s.size)+'</span><span class="source-seeds">⬆ '+(s.seeds||0)+'</span>':'')+'<span style="color:var(--text-muted);font-size:11px">'+(s.provider||'')+'</span></div><button class="source-play" style="'+(isEmbed?'background:#4ade80;color:#000':'')+'" onclick="playSource(\''+s.hash+'\','+(s.fileIndex||0)+',\''+esc(t)+'\''+eu+')">'+(isEmbed?'▶ Play':'▶')+'</button></div>'}).join('')
+    if(state.data?._playHash){const ph=state.data._playHash;state.data._playHash=null;setTimeout(()=>{const b=qs('#src-'+ph+' .source-play');if(b)b.click()},100)}
   }
 
 }
@@ -194,7 +196,7 @@ function fillEpisodes(isSeasonChange){
   es.value=selectedEpisode;es.onchange=function(){selectedEpisode=parseInt(this.value);updateEpisodeInfo();updateHashForEpisode();loadEpisodeSources(state.data.id,selectedSeason,selectedEpisode)}
   updateEpisodeInfo();loadEpisodeSources(state.data.id,selectedSeason,selectedEpisode)
 }
-function updateHashForEpisode(){if(!state.data)return;history.replaceState(null,'','#id='+state.data.id+'&type=tv&t='+encodeURIComponent(state.data._title||'')+'&y='+(state.data._year||'')+'&s='+selectedSeason+'&e='+selectedEpisode)}
+function updateHashForEpisode(){if(!state.data)return;history.replaceState(null,'','#id='+state.data.id+'&type=tv&t='+encodeURIComponent(state.data._title||'')+'&y='+(state.data._year||'')+'&s='+selectedSeason+'&e='+selectedEpisode+(state.data._playHash?'&hash='+state.data._playHash:''))}
 function updateEpisodeInfo(){const eps=window._eps;if(!eps)return;const epData=eps.find(s=>s.season===selectedSeason);if(!epData)return;const ep=epData.episodes.find(e=>e.number===selectedEpisode);const info=qs('#episodeInfo');if(info&&ep)info.innerHTML=ep.summary?'<p style="font-size:13px;color:var(--text-muted);margin-top:8px">'+esc(ep.summary.slice(0,300))+'</p>':''}
 
 function playerHTML(title){return'<div class="player-container"><button class="player-back" onclick="cp()"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg> Back</button><div class="player-wrapper" id="pw"><div class="player-loading" id="pl"><div class="spinner"></div><p id="plText">Connecting...</p><span class="player-progress-text" id="ps"></span></div><video id="player" crossorigin="anonymous" style="display:none;width:100%;height:100%;background:#000"></video><div id="customControls"><div class="controls-row"><button class="ctrl-btn" id="ppBtn">▶</button><span class="time-display" id="timeDisplay">0:00 / 0:00</span><div class="seek-container" id="seekBar"><div class="seek-track"><div class="seek-fill" id="seekFill"></div><div class="seek-thumb" id="seekThumb"></div></div></div><span class="time-display" id="timeRemaining">-0:00</span><div class="vol-group"><button class="ctrl-btn" id="volBtn"><svg viewBox="0 0 24 24" width="18" height="18" fill="#fff"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg></button><input type="range" class="vol-slider" id="volSlider" min="0" max="1" step=".05" value="1"></div><button class="ctrl-btn" id="ccBtn" title="Captions"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#fff" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M7 12h2m3 0h6"/><path d="M7 15h1.5m3.5 0h6"/></svg></button><button class="ctrl-btn" id="spdBtn" title="Speed">1x</button><div class="speed-menu" id="speedMenu">'+[.5,.75,1,1.25,1.5,2].map(x=>'<button class="speed-option'+(x===1?' active':'')+'" data-speed="'+x+'">'+x+'x</button>').join('')+'</div><button class="ctrl-btn" id="fsBtn"><svg viewBox="0 0 24 24" width="18" height="18" fill="#fff"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg></button></div></div><div class="kbd-hint" id="kbdHint"></div></div></div>'}
@@ -220,13 +222,24 @@ async function playBest(){
 
 async function playSource(hash,fi,title,embedUrl){
   if(embedUrl){
+    history.replaceState(null,'','#'+getDetailHash()+'&hash='+hash)
     state.view='player';document.title=title+' - web-streaming';qs('#app').innerHTML=ifr(embedUrl,title)
     return
   }
   if(state.mode!=='backend'){alert('Backend required');return}
+  history.replaceState(null,'','#'+getDetailHash()+'&hash='+hash)
   state.view='player';document.title=title+' - web-streaming';qs('#app').innerHTML=playerHTML(title)
   const ps=qs('#ps'),pl=qs('#plText');if(pl)pl.textContent='Connecting...';if(ps)ps.textContent=''
   streamAndPlay(hash,fi||0,null,ps,pl)
+}
+
+function getDetailHash(){
+  const d=state.data||{};let h='id='+(d.id||'')
+  if(d.type==='tv')h+='&type=tv'
+  if(d.title)h+='&t='+encodeURIComponent(d.title)
+  if(d.year)h+='&y='+d.year
+  if(selectedSeason&&selectedEpisode)h+='&s='+selectedSeason+'&e='+selectedEpisode
+  return h
 }
 
 function ifr(url,title){
@@ -350,7 +363,7 @@ async function PL(){
 }
 async function addToWatchlistFromProfile(id,title,poster,type){try{await api('POST','/api/watchlist/add',{id,title,poster,type});qs('#psInput').value='';qs('#psDrop').style.display='none';alert('Added!')}catch(e){alert(e.message)}}
 
-function restoreFromHash(){const hash=window.location.hash.slice(1);if(!hash||hash==='/'||hash==='')return;if(hash==='profile'){state.view='profile';return};const params=new URLSearchParams(hash);if(params.has('q')){state.query=params.get('q');state.view='search'}else if(params.has('id')){state.view='detail';const se=parseInt(params.get('s')),ep=parseInt(params.get('e'));if(se&&ep){selectedSeason=se;selectedEpisode=ep};state.data={id:params.get('id'),type:params.get('type')||'movie',title:params.get('t')||'',year:params.get('y')||'',season:se||null,episode:ep||null}}else state.view='home'}
+function restoreFromHash(){const hash=window.location.hash.slice(1);if(!hash||hash==='/'||hash==='')return;if(hash==='profile'){state.view='profile';return};const params=new URLSearchParams(hash);if(params.has('q')){state.query=params.get('q');state.view='search'}else if(params.has('id')){state.view='detail';const se=parseInt(params.get('s')),ep=parseInt(params.get('e'));if(se&&ep){selectedSeason=se;selectedEpisode=ep};state.data={id:params.get('id'),type:params.get('type')||'movie',title:params.get('t')||'',year:params.get('y')||'',season:se||null,episode:ep||null,_playHash:params.get('hash')||null}}else state.view='home'}
 
 async function init(){
   try{if(token&&refreshToken&&!state.user){const refreshed=await tryRefreshSession();if(refreshed){try{const u=await api('GET','/api/auth/user');state.user=u}catch{}}};if(!state.user&&token){try{const u=await api('GET','/api/auth/user');state.user=u}catch{localStorage.removeItem('um_token');token=''}};await detect();if(state.mode==='standalone'&&!navigator.onLine){qs('#app').innerHTML='<div class="loading-screen"><h2>No backend</h2><p>Connect to the internet or configure a backend URL.</p></div>';return};restoreFromHash();if(state.view==='search'&&state.query)qs('#searchInput').value=state.query;render()}catch(e){console.error('Init:',e);qs('#main').innerHTML='<div class="error-view"><h2>Failed to load</h2><p>'+esc(e.message||'Unknown error')+'</p><button class="btn btn-primary" onclick="location.reload()">Retry</button></div>'}
