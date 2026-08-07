@@ -229,7 +229,11 @@ async function playSource(hash,fi,title,embedUrl){
   streamAndPlay(hash,fi||0,null,ps,pl)
 }
 
-function ifr(url,title){document.title=title+' - web-streaming';return'<div class="player-container"><button class="player-back" onclick="cp()"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg> Back</button><div class="player-wrapper"><iframe src="'+url+'" allow="autoplay;encrypted-media;fullscreen" allowfullscreen referrerpolicy="no-referrer" style="position:absolute;inset:0;width:100%;height:100%;border:none;background:#000"></iframe></div></div>'}
+function ifr(url,title){
+  document.title=title+' - web-streaming'
+  const u=url.replace(/'/g,'%27')
+  return'<div class="player-container"><button class="player-back" onclick="cp()"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg> Back</button><div class="player-wrapper"><iframe src="'+u+'" allow="autoplay;encrypted-media;fullscreen" allowfullscreen referrerpolicy="no-referrer" style="position:absolute;inset:0;width:100%;height:100%;border:none;background:#000" id="embedFrame" onerror="document.getElementById(\'embedFrame\').outerHTML=\'<div class=loading-screen style=position:absolute;inset:0;background:#000><p>Embed blocked. <a href=%27\'+encodeURIComponent(\''+u+'\')+\'%27 target=_blank style=color:var(--primary)>Open in new tab</a></p></div>\'"></iframe></div></div>'
+}
 
 async function streamAndPlay(hash,fi,dlId,ps,pl){
   const base=state.backendUrl||'',infoHash=hash
