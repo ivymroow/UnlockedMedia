@@ -153,7 +153,7 @@ async function loadEpisodeSources(id,season,episode){
   if(!srcs||!srcs.length){list.innerHTML='<p style="color:var(--text-muted);font-size:14px;padding:8px 0">No sources for '+esc(title)+' '+q+'.</p>';return}
   srcs.sort((a,b)=>(b.seeds||0)-(a.seeds||0))
   state._sources=srcs
-  list.innerHTML=srcs.map(src=>{const dead=(src.seeds||0)===0&&(src.peers||0)===0;return'<div class="source-item'+(dead?' dead-source':'')+'"><div class="source-info"><span class="source-quality">'+src.quality+'</span><span class="source-size">'+fmt(src.size)+'</span><span class="source-seeds">⬆ '+(src.seeds||0)+'</span><span class="source-peers">⬇ '+(src.peers||0)+'</span><span style="color:var(--text-muted);font-size:11px">'+(src.provider||'')+'</span></div><button class="source-play" onclick="playSource(\''+src.hash+'\','+(src.fileIndex||0)+',\''+esc(title)+' '+q+'\')">'+(dead?'⚠ Try':'▶ Play')+'</button></div>'}).join('')
+  list.innerHTML=srcs.map(src=>{const dead=(src.seeds||0)===0&&(src.peers||0)===0;const eu=src.embedUrl?',null,\''+esc(src.embedUrl)+'\'':'';return'<div class="source-item'+(dead?' dead-source':'')+'"><div class="source-info"><span class="source-quality">'+src.quality+'</span><span class="source-size">'+fmt(src.size)+'</span><span class="source-seeds">⬆ '+(src.seeds||0)+'</span><span class="source-peers">⬇ '+(src.peers||0)+'</span><span style="color:var(--text-muted);font-size:11px">'+(src.provider||'')+'</span></div><button class="source-play" onclick="playSource(\''+src.hash+'\','+(src.fileIndex||0)+',\''+esc(title)+' '+q+'\''+eu+')">'+(dead?'⚠ Try':'▶ Play')+'</button></div>'}).join('')
 }
 
 function RD(d,srces,episodes){
@@ -177,7 +177,7 @@ function RD(d,srces,episodes){
     const list=qs('#sl')
     if(!srces||!srces.length){if(list)list.innerHTML='<p style="color:var(--text-muted);font-size:14px;padding:8px 0">No sources found.</p>';return}
     state._sources=srces
-    if(list)list.innerHTML=srces.map(s=>{const dead=(s.seeds||0)===0&&(s.peers||0)===0;return'<div class="source-item'+(dead?' dead-source':'')+'"><div class="source-info"><span class="source-quality">'+s.quality+'</span><span class="source-size">'+fmt(s.size)+'</span><span class="source-seeds">⬆ '+(s.seeds||0)+'</span><span class="source-peers">⬇ '+(s.peers||0)+'</span><span style="color:var(--text-muted);font-size:11px">'+(s.provider||'')+'</span></div><button class="source-play" onclick="playSource(\''+s.hash+'\','+(s.fileIndex||0)+',\''+esc(t)+'\')">'+(dead?'⚠ Try':'▶ Play')+'</button></div>'}).join('')
+    if(list)list.innerHTML=srces.map(s=>{const dead=(s.seeds||0)===0&&(s.peers||0)===0;const eu=s.embedUrl?',null,\''+esc(s.embedUrl)+'\'':'';return'<div class="source-item'+(dead?' dead-source':'')+'"><div class="source-info"><span class="source-quality">'+s.quality+'</span><span class="source-size">'+fmt(s.size)+'</span><span class="source-seeds">⬆ '+(s.seeds||0)+'</span><span class="source-peers">⬇ '+(s.peers||0)+'</span><span style="color:var(--text-muted);font-size:11px">'+(s.provider||'')+'</span></div><button class="source-play" onclick="playSource(\''+s.hash+'\','+(s.fileIndex||0)+',\''+esc(t)+'\''+eu+')">'+(dead?'⚠ Try':'▶ Play')+'</button></div>'}).join('')
   }
 
 }
@@ -218,12 +218,18 @@ async function playBest(){
   }catch(e){perr(e.message)}
 }
 
-async function playSource(hash,fi,title){
+async function playSource(hash,fi,title,embedUrl){
+  if(embedUrl){
+    state.view='player';document.title=title+' - web-streaming';qs('#app').innerHTML=ifr(embedUrl,title)
+    return
+  }
   if(state.mode!=='backend'){alert('Backend required');return}
   state.view='player';document.title=title+' - web-streaming';qs('#app').innerHTML=playerHTML(title)
   const ps=qs('#ps'),pl=qs('#plText');if(pl)pl.textContent='Connecting...';if(ps)ps.textContent=''
   streamAndPlay(hash,fi||0,null,ps,pl)
 }
+
+function ifr(url,title){return'<div class="player-container"><button class="player-back" onclick="cp()"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg> Back</button><div class="player-wrapper" style="background:#000"><iframe src="'+url+'" style="width:100%;height:100%;border:none" allow="autoplay;fullscreen" allowfullscreen></iframe></div></div>'}
 
 async function streamAndPlay(hash,fi,dlId,ps,pl){
   const base=state.backendUrl||'',infoHash=hash

@@ -2,6 +2,7 @@ const express = require('express');
 const metadata = require('../services/metadata');
 const torrent = require('../services/torrent');
 const sourceFinder = require('../source-finder');
+const embeds = require('../embeds');
 const { asyncHandler } = require('../middleware/errors');
 const { requireQuery } = require('../middleware/validation');
 
@@ -43,12 +44,14 @@ router.get('/movie/:id', asyncHandler(async (req, res) => {
 router.get('/movie/:id/sources', asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { title, year } = req.query;
-  const [addon, searched] = await Promise.allSettled([
+  const [addon, searched, embedList] = await Promise.allSettled([
     sourceFinder.findMovie(id),
     torrent.searchSources(id, title || id, Number(year) || 0, 'movie', id),
+    embeds.getEmbeds(id),
   ]);
 
   res.json(uniqueSources([
+    ...(embedList.status === 'fulfilled' ? embedList.value : []),
     ...(addon.status === 'fulfilled' ? addon.value : []),
     ...(searched.status === 'fulfilled' ? searched.value : []),
   ]));
@@ -64,15 +67,21 @@ router.get('/show/:id/sources', asyncHandler(async (req, res) => {
   if (!season || !episode) return res.json([]);
 
   const episodeQuery = `${title || ''} S${String(season).padStart(2, '0')}E${String(episode).padStart(2, '0')}`;
-  const [addon, searched] = await Promise.allSettled([
+  const [addon, searched, embedList] = await Promise.allSettled([
     sourceFinder.findEpisode(id, Number(season), Number(episode)),
     torrent.searchSources(id, episodeQuery, Number(year) || 0, 'tv', id),
+    embeds.getEmbeds(id, null, Number(season), Number(episode)),
   ]);
 
   res.json(uniqueSources([
+    ...(embedList.status === 'fulfilled' ? embedList.value : []),
     ...(addon.status === 'fulfilled' ? addon.value : []),
     ...(searched.status === 'fulfilled' ? searched.value : []),
   ]));
+}));
+
+router.get('/movie/:id/embeds', asyncHandler(async (req, res) => {
+  res.json(await embeds.getEmbeds(req.params.id, req.query.tmdb));
 }));
 
 module.exports = router;
