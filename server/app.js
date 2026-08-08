@@ -7,7 +7,6 @@ const rateLimit = require('./middleware/rateLimit');
 const { errorHandler } = require('./middleware/errors');
 
 const mediaRoutes = require('./routes/media');
-const streamRoutes = require('./routes/streams');
 const authRoutes = require('./routes/auth');
 const progressRoutes = require('./routes/progress');
 const watchlistRoutes = require('./routes/watchlist');
@@ -40,7 +39,6 @@ function createApp() {
   });
 
   app.use('/api', mediaRoutes);
-  app.use('/api', streamRoutes);
   app.use('/api/auth', authRoutes);
   app.use('/api/progress', progressRoutes);
   app.use('/api/watchlist', watchlistRoutes);

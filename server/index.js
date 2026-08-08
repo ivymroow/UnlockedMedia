@@ -1,7 +1,5 @@
 const createApp = require('./app');
 const env = require('./config/env');
-const torrent = require('./services/torrent');
-const downloads = require('./services/downloads');
 const logger = require('./utils/logger');
 
 process.on('uncaughtException', err => {
@@ -31,9 +29,6 @@ const server = app.listen(env.port, '0.0.0.0', () => {
 
 function shutdown(signal) {
   logger.info(`Received ${signal}, shutting down`);
-  try { downloads.cleanupAll(); } catch {}
-  try { torrent.cleanupStreams(true); } catch {}
-  try { torrent.client.destroy(); } catch {}
   server.close(() => process.exit(0));
   setTimeout(() => process.exit(0), 3000).unref();
 }
