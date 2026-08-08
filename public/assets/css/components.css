@@ -70,13 +70,17 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: var(--text-muted);
+  color: #fff;
+  background: var(--surface);
   font-size: 14px;
-  padding: 12px 0;
+  padding: 8px 16px;
+  border-radius: var(--radius);
   transition: var(--transition-fast);
   width: fit-content;
+  border: none;
+  cursor: pointer;
 }
-.detail-back:hover { color: var(--text); }
+.detail-back:hover { background: var(--surface-hover); }
 .detail-hero {
   display: flex;
   gap: 32px;
