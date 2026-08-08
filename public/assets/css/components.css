@@ -71,7 +71,7 @@
   align-items: center;
   gap: 6px;
   color: #fff;
-  background: var(--surface);
+  background: #1e1e2e;
   font-size: 14px;
   padding: 8px 16px;
   border-radius: var(--radius);
@@ -80,7 +80,7 @@
   border: none;
   cursor: pointer;
 }
-.detail-back:hover { background: var(--surface-hover); }
+.detail-back:hover { background: #2a2a3e; }
 .detail-hero {
   display: flex;
   gap: 32px;
