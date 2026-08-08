@@ -86,9 +86,13 @@ async function render(){renderUserSection();const m=qs('#main');try{if(state.vie
 
 function renderUserSection(){
   const el=qs('#userSection');if(!el)return
-  if(state.user){const d=state.user.username||state.user.email;el.innerHTML='<div class="user-menu"><button class="user-btn" onclick="navigate(\'profile\')">'+esc(d)+'</button><button class="user-btn" onclick="signOut()">Sign Out</button></div>'}
-  else el.innerHTML='<button class="user-btn" onclick="showAuth()">Sign In</button>'
+  if(state.user){
+    const d=state.user.username||state.user.email
+    el.innerHTML='<div class="user-menu" style="position:relative"><button class="user-btn" onclick="toggleUserMenu()">'+esc(d)+' <span style="font-size:10px">▼</span></button><div class="user-drop" id="userDrop" style="display:none;position:absolute;top:100%;right:0;background:var(--surface-elevated);border:1px solid var(--border);border-radius:var(--radius);padding:4px;min-width:160px;z-index:200"><button class="speed-option" onclick="navigate(\'profile\');toggleUserMenu()">profile</button><button class="speed-option" onclick="markWatched();toggleUserMenu()">mark as watched</button><button class="speed-option" onclick="markPlanned();toggleUserMenu()">plan to watch</button><button class="speed-option" onclick="signOut();toggleUserMenu()">sign out</button></div></div>'
+  }else el.innerHTML='<button class="user-btn" onclick="showAuth()">sign in</button>'
 }
+function toggleUserMenu(){const d=qs('#userDrop');if(d)d.style.display=d.style.display==='block'?'none':'block'}
+document.addEventListener('click',e=>{const d=qs('#userDrop'),b=qs('#userDrop')?.previousElementSibling;if(d&&!d.contains(e.target)&&e.target!==b)d.style.display='none'})
 
 function W(){return'<div class="welcome"><div class="welcome-card"><h1 style="color:var(--primary)">web-streaming <span class="beta-tag">beta</span></h1><p>a simple streaming site that simply works.</p><ul class="welcome-list"><li>simply doesn\'t spam ads</li><li>simply doesn\'t break half the time</li><li>simply just works</li></ul><p>everything runs with no budget. hosted on render\'s free tier.</p><p style="font-size:13px"><a href="#" onclick="navigate(\'notice\');return false" style="color:var(--primary)">view project notice</a></p><button class="btn btn-primary" style="margin-top:20px;font-size:16px;padding:14px 48px" onclick="navigate(\'home\')">enter</button></div></div>'}
 function enterSite(){state.view='home';navigate('home')}
@@ -224,7 +228,7 @@ async function playSource(hash,fi,title,embedUrl){
     // auto-save as watching
     if(state.user&&state.data?.id){
       const se=state.data.type==='tv'?selectedSeason:0,ep=state.data.type==='tv'?selectedEpisode:0
-      fetch((state.backendUrl||'')+'/api/progress/save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({id:state.data.id,title:state._title||'',poster:state._poster||'',type:state.data.type||'movie',season:se,episode:ep,duration:0,watched:0,status:'watching'})}).catch(()=>{})
+      fetch((state.backendUrl||'')+'/api/progress/save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({id:state.data.id,title:state._title||state.data.title||'',poster:state._poster||'',type:state.data.type||'movie',season:se,episode:ep,duration:0,watched:0,status:'watching'})}).catch(()=>{})
     }
     return
   }
@@ -353,6 +357,18 @@ async function doAuth(){
   try{const r=await api('POST',authMode==='signup'?'/api/auth/signup':'/api/auth/signin',body);if(r.ok){state.user=r.user}hideAuth();render()}catch(e){qs('#authError').textContent=e.message}
 }
 function toggleAuthMode(){authMode=authMode==='signin'?'signup':'signin';qs('#authModalTitle').textContent=authMode==='signin'?'sign in':'sign up';qs('#authToggle').innerHTML=authMode==='signin'?'don\'t have an account? <a href=\"#\" onclick=\"toggleAuthMode();return false\" style=\"color:var(--primary)\">sign up</a>':'already have an account? <a href=\"#\" onclick=\"toggleAuthMode();return false\" style=\"color:var(--primary)\">sign in</a>'}
+async function markWatched(){
+  if(!state.user||!state.data?.id)return
+  const se=state.data.type==='tv'?selectedSeason:0,ep=state.data.type==='tv'?selectedEpisode:0
+  fetch((state.backendUrl||'')+'/api/progress/save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({id:state.data.id,title:state._title||state.data.title||'',poster:state._poster||'',type:state.data.type||'movie',season:se,episode:ep,duration:0,watched:0,status:'watched'})}).catch(()=>{})
+  alert('marked as watched')
+}
+async function markPlanned(){
+  if(!state.user||!state.data?.id)return
+  const se=state.data.type==='tv'?selectedSeason:0,ep=state.data.type==='tv'?selectedEpisode:0
+  fetch((state.backendUrl||'')+'/api/progress/save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({id:state.data.id,title:state._title||state.data.title||'',poster:state._poster||'',type:state.data.type||'movie',season:se,episode:ep,duration:0,watched:0,status:'planned'})}).catch(()=>{})
+  alert('added to plan to watch')
+}
 function signOut(){fetch((state.backendUrl||'')+'/api/auth/signout',{method:'POST',credentials:'include'}).catch(()=>{});state.user=null;render()}
 
 function PR(){return'<div class="profile"><button class="detail-back" onclick="navigate(\'home\')"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg> Back</button><h1>Profile</h1><div class="profile-search"><input type="text" id="psInput" class="profile-search-input" placeholder="Search movies & shows to add..." autocomplete="off"><div class="profile-search-drop" id="psDrop" style="display:none"></div></div><div class="profile-tabs"><button class="profile-tab active" data-tab="watching">Continue Watching</button><button class="profile-tab" data-tab="watchlist">Watchlist</button><button class="profile-tab" data-tab="watched">Watched</button><button class="profile-tab" data-tab="planned">Plan to Watch</button></div><div class="grid" id="profileGrid"></div><div class="loading-screen" id="pLd"><div class="spinner"></div><p>Loading...</p></div></div>'}
