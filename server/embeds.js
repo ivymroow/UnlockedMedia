@@ -3,7 +3,9 @@ async function getEmbeds(imdbId, tmdbId, season, episode) {
   const embeds = [];
 
   if (season && episode) {
-    embeds.push({ name: '2Embed', url: `https://www.2embed.cc/embedtv/${id}&s=${season}&e=${episode}` });
+    embeds.push({ name: '2Embed (Sub)', url: `https://www.2embed.cc/embedtv/${id}&s=${season}&e=${episode}` });
+    embeds.push({ name: '2Embed (Dub)', url: `https://www.2embed.cc/embedtv/${id}&s=${season}&e=${episode}&dub=true` });
+    embeds.push({ name: '2Embed Anime', url: `https://www.2embed.cc/embedtv/${id}&s=${season}&e=${episode}` });
   } else {
     embeds.push({ name: '2Embed', url: `https://www.2embed.cc/embed/${id}` });
   }
