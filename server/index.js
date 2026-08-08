@@ -18,6 +18,15 @@ process.on('unhandledRejection', err => {
 const app = createApp();
 const server = app.listen(env.port, '0.0.0.0', () => {
   logger.info(`WebStreaming listening on ${env.port}`, { env: env.nodeEnv });
+  if (env.isProduction) {
+    const http = require('http');
+    setInterval(() => {
+      http.get(`http://localhost:${env.port}/health`, res => {
+        logger.debug(`keepalive ping: ${res.statusCode}`);
+        res.resume();
+      }).on('error', err => logger.debug(`keepalive ping failed: ${err.message}`));
+    }, 10 * 60 * 1000).unref();
+  }
 });
 
 function shutdown(signal) {
