@@ -98,20 +98,31 @@ function qso(){const cm=qs('#ctxMenu');if(cm)cm.remove()}
 function W(){return'<div class="welcome"><div class="welcome-card"><h1 style="color:var(--primary)">web-streaming <span class="beta-tag">beta</span></h1><p>a simple streaming site that simply works.</p><ul class="welcome-list"><li>simply doesn\'t spam ads</li><li>simply doesn\'t break half the time</li><li>simply just works</li></ul><p>everything runs with no budget. hosted on render\'s free tier.</p><p style="font-size:13px"><a href="#" onclick="navigate(\'notice\');return false" style="color:var(--primary)">view project notice</a></p><button class="btn btn-primary" style="margin-top:20px;font-size:16px;padding:14px 48px" onclick="navigate(\'home\')">enter</button></div></div>'}
 function enterSite(){state.view='home';navigate('home')}
 
-function H(){return'<div class="section" id="cwSection" style="display:none"><h2 class="section-title">continue watching</h2><div class="grid" id="cwGrid"></div></div><div class="section"><h2 class="section-title">trending</h2><div class="grid" id="g0"></div></div><div class="loading-screen" id="HL"><div class="spinner"></div><p>loading...</p></div>'}
+function H(){return'<div class="loading-screen" id="HL"><div class="spinner"></div><p>loading...</p></div>'}
 
 async function L(){
   try{
-    if(state.user){(async()=>{
-      try{
-        const cw=await api('GET','/api/progress/list?status=watching')
-        if(cw?.length){qs('#cwSection').style.display='';G('cwGrid',cw.map(i=>({id:i.item_id,title:i.title,poster:i.poster,year:null,type:i.type,progress:i.watched&&i.duration?i.watched/i.duration:0})))}
-      }catch{}
-    })()}
-    const a=await api('GET','/api/trending')
-    qs('#HL').style.display='none';G('g0',a)
-    if(!a.length)qs('#HL').outerHTML='<div class="loading-screen"><p>no backend connected. try searching.</p></div>'
-  }catch(e){qs('#HL').outerHTML='<div class="error-view"><p>'+esc(e.message)+'</p></div>'}
+    if(state.user){(async()=>{try{const cw=await api('GET','/api/progress/list?status=watching');if(cw?.length){qs('#main').insertAdjacentHTML('afterbegin','<div class="section"><h2 class="section-title">continue watching</h2><div class="grid" id="cwGrid"></div></div>');G('cwGrid',cw.map(i=>({id:i.item_id,title:i.title,poster:i.poster,year:null,type:i.type,progress:i.watched&&i.duration?i.watched/i.duration:0})))}}catch{}})()}
+    const a=await api('GET','/api/trending');qs('#HL').style.display='none'
+    if(!a.length){qs('#HL').outerHTML='<div class="loading-screen"><p>no backend connected. try searching.</p></div>';return}
+    // Store for filtering
+    window._trending=a
+    // Hero banner
+    const hero=a.find(x=>x.poster&&x.overview)||a.find(x=>x.poster)||a[0]
+    if(hero){qs('#main').insertAdjacentHTML('afterbegin','<div class="hero" style="height:60vh;min-height:400px;padding:64px 32px;position:relative;overflow:hidden"><img src="'+hero.poster+'" class="hero-bg" onerror="this.parentElement.style.display=\'none\'"><div class="hero-gradient"></div><div class="hero-content" style="max-width:600px"><h1 class="hero-logo" style="font-size:36px">'+esc(hero.title||'')+'</h1><div class="hero-meta" style="display:flex;gap:16px;margin:8px 0 16px;font-size:14px;color:var(--text-secondary)">'+(hero.year?'<span>'+hero.year+'</span>':'')+'<span style="color:#f5c518">★ '+((hero.rating||0).toFixed(1)||'--')+'</span></div><p class="hero-overview">'+esc(hero.overview||'')+'</p><button class="btn btn-primary" style="margin-top:16px;padding:14px 36px;font-size:16px" onclick="navigate(\'detail\',{id:\''+hero.id+'\',type:\''+(hero.type||'movie')+'\',title:\''+esc(hero.title||'')+'\',year:\''+(hero.year||'')+'\'})">watch now</button></div></div>')}
+    // Filter bar
+    qs('#main').insertAdjacentHTML('beforeend','<div class="section" style="padding-bottom:0"><div style="display:flex;gap:8px;margin-bottom:16px"><button class="profile-tab active" onclick="filterTrending(\'all\',this)">all</button><button class="profile-tab" onclick="filterTrending(\'movie\',this)">movies</button><button class="profile-tab" onclick="filterTrending(\'tv\',this)">tv shows</button></div><div class="grid" id="g0"></div></div>')
+    G('g0',a)
+  }catch(e){qs('#main').innerHTML='<div class="error-view"><p>'+esc(e.message)+'</p></div>'}
+}
+
+function filterTrending(type,btn){
+  const tabs=document.querySelectorAll('.profile-tab');tabs.forEach(t=>t.classList.remove('active'))
+  if(btn)btn.classList.add('active')
+  const items=window._trending||[]
+  const filtered=type==='all'?items:items.filter(i=>i.type===type)
+  G('g0',filtered)
+  if(!filtered.length)qs('#g0').innerHTML='<p style="color:var(--text-muted);grid-column:1/-1;text-align:center;padding:40px">nothing here</p>'
 }
 
 function el(tag,opts={},...children){
@@ -396,5 +407,15 @@ async function init(){
 // Scroll effect on header
 window.addEventListener('scroll',()=>{qs('#mainHeader')?.classList.toggle('scrolled',window.scrollY>50)})
 
-let st;qs('#searchInput').addEventListener('input',function(){clearTimeout(st);const q=this.value.trim();if(!q){navigate('home');return};st=setTimeout(()=>{state.query=q;navigate('search')},300)});qs('#searchInput').addEventListener('keydown',function(e){if(e.key==='Enter'){clearTimeout(st);const q=this.value.trim();if(q){state.query=q;navigate('search')}}})
+let st;qs('#searchInput').addEventListener('input',function(){clearTimeout(st);const q=this.value.trim();if(!q){clearSearchDrop();return};st=setTimeout(async()=>{try{const r=state.mode==='backend'?await api('GET','/api/search?q='+encodeURIComponent(q)):await standalone('/api/search?q='+encodeURIComponent(q));showSearchDrop(r,q)}catch{}},300)});
+qs('#searchInput').addEventListener('keydown',function(e){if(e.key==='Enter'){clearTimeout(st);const q=this.value.trim();if(q){clearSearchDrop();state.query=q;navigate('search')}}})
+function showSearchDrop(results,q){
+  const el=qs('#searchDrop');if(!el){const d=document.createElement('div');d.id='searchDrop';d.style.cssText='position:absolute;top:100%;left:0;right:0;background:var(--surface-elevated);border:1px solid var(--border);border-radius:var(--radius);margin-top:4px;max-height:360px;overflow-y:auto;z-index:200';qs('.search-box').appendChild(d)}
+  const drop=qs('#searchDrop');
+  if(!results||!results.length){drop.style.display='none';return}
+  drop.innerHTML=results.slice(0,8).map(i=>'<div class="ps-drop-item" onclick="clearSearchDrop();navigate(\'detail\',{id:\''+i.id+'\',type:\''+(i.type||'movie')+'\',title:\''+esc(i.title||'')+'\',year:\''+(i.year||'')+'\'})"><img src="'+(i.poster||'')+'" onerror="this.src=\'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 40 60%22><rect fill=%22%231a1a26%22 width=%2240%22 height=%2260%22/><text x=%2220%22 y=%2235%22 text-anchor=%22middle%22 font-size=%2218%22>🎬</text></svg>\'" style="width:32px;height:48px;object-fit:cover;border-radius:4px;flex-shrink:0"><div><div style="font-weight:600;font-size:13px">'+esc(i.title||'')+'</div><div style="font-size:11px;color:var(--text-muted)">'+(i.year||'')+' · '+(i.type==='tv'?'TV':'Movie')+'</div></div></div>').join('')
+  drop.style.display='block'
+}
+function clearSearchDrop(){const d=qs('#searchDrop');if(d)d.style.display='none'}
+document.addEventListener('click',e=>{const d=qs('#searchDrop'),inp=qs('#searchInput');if(d&&!d.contains(e.target)&&e.target!==inp)d.style.display='none'})
 init()
