@@ -1,5 +1,5 @@
 const COOKIE_NAME = 'ws_sid';
-const SESSION_TTL = 7 * 24 * 60 * 60;
+const SESSION_TTL = 10 * 365 * 24 * 60 * 60;
 
 function create(res, user, token, refresh) {
   const data = Buffer.from(JSON.stringify({ u: user, t: token, r: refresh })).toString('base64');
