@@ -1,11 +1,8 @@
 const sessions = require('../sessions');
-const supabase = require('../supabase');
 
 async function requireUser(req, res) {
-  const sid = sessions.readFromCookie(req);
-  if (!sid) { res.status(401).json({ error: 'Not signed in' }); return null; }
-  const session = sessions.get(sid);
-  if (!session) { res.status(401).json({ error: 'Session expired' }); return null; }
+  const session = sessions.get(req);
+  if (!session) { res.status(401).json({ error: 'Not signed in' }); return null; }
   return session.user;
 }
 
