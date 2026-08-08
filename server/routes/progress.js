@@ -21,6 +21,14 @@ router.get('/get', asyncHandler(async (req, res) => {
   res.json(item || {});
 }));
 
+router.post('/update', asyncHandler(async (req, res) => {
+  const c = require('../supabase').getClient(req._supabaseToken);
+  const { id, status } = req.body;
+  if (!id || !status) return res.status(400).json({ error: 'id and status required' });
+  await c.from('watch_progress').update({ status }).eq('user_id', req.user.id).eq('item_id', id);
+  res.json({ ok: true });
+}));
+
 router.post('/delete', asyncHandler(async (req, res) => {
   const c = require('../supabase').getClient(req._supabaseToken);
   await c.from('watch_progress').delete().eq('user_id', req.user.id).eq('item_id', req.body.id);
