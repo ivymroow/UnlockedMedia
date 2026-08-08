@@ -158,7 +158,7 @@ function RD(d,srces,episodes){
   document.title=t+' - web-streaming'
   const posterUrl=d.poster||''
   let wlBtn=''
-  if(token){wlBtn='<button class="wl-btn" id="wlBtn" onclick="toggleWatchlist()">Loading...</button>';setTimeout(async()=>{try{const r=await api('GET','/api/watchlist/check?id='+d.id);const b=qs('#wlBtn');if(b){b.textContent=r.inList?'✓ In Watchlist':'+ Watchlist';b.className='wl-btn'+(r.inList?' in-list':'')}}catch{}},50)}
+  if(state.user){wlBtn='<button class="wl-btn" id="wlBtn" onclick="toggleWatchlist()">Loading...</button>';setTimeout(async()=>{try{const r=await api('GET','/api/watchlist/check?id='+d.id);const b=qs('#wlBtn');if(b){b.textContent=r.inList?'✓ In Watchlist':'+ Watchlist';b.className='wl-btn'+(r.inList?' in-list':'')}}catch{}},50)}
   let epHTML=''
   if(isTv){
     if(state.data?.season&&state.data?.episode){selectedSeason=state.data.season;selectedEpisode=state.data.episode;state.data.season=null;state.data.episode=null}
@@ -220,7 +220,7 @@ async function playSource(hash,fi,title,embedUrl){
   state.prevState={view:state.view,data:state.data}
   if(embedUrl){
     history.replaceState(null,'','#'+getDetailHash()+'&hash='+hash)
-    window.open(embedUrl,'_blank')
+    state.view='player';document.title=title+' - web-streaming';qs('#app').innerHTML=ifr(embedUrl,title)
     return
   }
   if(state.mode!=='backend'){alert('Backend required');return}
@@ -352,7 +352,7 @@ function signOut(){fetch((state.backendUrl||'')+'/api/auth/signout',{method:'POS
 
 function PR(){return'<div class="profile"><button class="detail-back" onclick="navigate(\'home\')"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg> Back</button><h1>Profile</h1><div class="profile-search"><input type="text" id="psInput" class="profile-search-input" placeholder="Search movies & shows to add..." autocomplete="off"><div class="profile-search-drop" id="psDrop" style="display:none"></div></div><div class="profile-tabs"><button class="profile-tab active" data-tab="watching">Continue Watching</button><button class="profile-tab" data-tab="watchlist">Watchlist</button><button class="profile-tab" data-tab="watched">Watched</button><button class="profile-tab" data-tab="planned">Plan to Watch</button></div><div class="grid" id="profileGrid"></div><div class="loading-screen" id="pLd"><div class="spinner"></div><p>Loading...</p></div></div>'}
 async function PL(){
-  if(!token){qs('#profileGrid').innerHTML='<p style="color:var(--text-muted);padding:40px;text-align:center">Sign in to manage your watchlist.</p>';qs('#pLd').style.display='none';return}
+  if(!state.user){qs('#profileGrid').innerHTML='<p style="color:var(--text-muted);padding:40px;text-align:center">Sign in to manage your watchlist.</p>';qs('#pLd').style.display='none';return}
   document.title='Profile - web-streaming'
   async function lt(tab){qs('#pLd').style.display='';qs('#profileGrid').innerHTML='';qs('#psDrop').style.display='none';document.querySelectorAll('.profile-tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab))
     try{let items=[];if(tab==='watchlist')items=await api('GET','/api/watchlist/list');else items=await api('GET','/api/progress/list?status='+tab);G('profileGrid',items.map(i=>({id:i.item_id||i.id,title:i.title,poster:i.poster,year:null,type:i.type,progress:tab==='watching'&&i.watched&&i.duration?i.watched/i.duration:0})));if(!items.length)qs('#profileGrid').innerHTML='<p style="color:var(--text-muted);padding:40px;text-align:center;grid-column:1/-1">Nothing here yet.</p>'}catch(e){qs('#profileGrid').innerHTML='<p style="color:#f87171;padding:40px;text-align:center">'+esc(e.message)+'</p>'}
@@ -366,7 +366,7 @@ async function addToWatchlistFromProfile(id,title,poster,type){try{await api('PO
 function restoreFromHash(){const hash=window.location.hash.slice(1);if(!hash||hash==='/'||hash==='')return;if(hash==='profile'){state.view='profile';return};if(hash==='notice'){state.view='notice';return};const params=new URLSearchParams(hash);if(params.has('q')){state.query=params.get('q');state.view='search'}else if(params.has('id')){state.view='detail';const se=parseInt(params.get('s')),ep=parseInt(params.get('e'));if(se&&ep){selectedSeason=se;selectedEpisode=ep};state.data={id:params.get('id'),type:params.get('type')||'movie',title:params.get('t')||'',year:params.get('y')||'',season:se||null,episode:ep||null,_playHash:params.get('hash')||null}}else state.view='home'}
 
 async function init(){
-  try{if(token&&refreshToken&&!state.user){const refreshed=await tryRefreshSession();if(refreshed){try{const u=await api('GET','/api/auth/user');state.user=u}catch{}}};if(!state.user&&token){try{const u=await api('GET','/api/auth/user');state.user=u}catch{localStorage.removeItem('um_token');token=''}};await detect();if(state.mode==='standalone'&&!navigator.onLine){qs('#app').innerHTML='<div class="loading-screen"><h2>No backend</h2><p>Connect to the internet or configure a backend URL.</p></div>';return};restoreFromHash();if(state.view==='search'&&state.query)qs('#searchInput').value=state.query;render()}catch(e){console.error('Init:',e);qs('#main').innerHTML='<div class="error-view"><h2>Failed to load</h2><p>'+esc(e.message||'Unknown error')+'</p><button class="btn btn-primary" onclick="location.reload()">Retry</button></div>'}
+  try{await detect();if(state.mode==='backend'){try{const u=await api('GET','/api/auth/user');state.user=u}catch{}};if(state.mode==='standalone'&&!navigator.onLine){qs('#app').innerHTML='<div class="loading-screen"><h2>No backend</h2><p>Connect to the internet or configure a backend URL.</p></div>';return};restoreFromHash();if(state.view==='search'&&state.query)qs('#searchInput').value=state.query;render()}catch(e){console.error('Init:',e);qs('#main').innerHTML='<div class="error-view"><h2>Failed to load</h2><p>'+esc(e.message||'Unknown error')+'</p><button class="btn btn-primary" onclick="location.reload()">Retry</button></div>'}
 }
 
 // Scroll effect on header
