@@ -26,11 +26,6 @@
       </div>
       <div class="header-right">
         <div id="userSection"></div>
-        <button class="btn-icon" onclick="toggleSettings()" title="Settings">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="3"/><path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72 1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
-          </svg>
-        </button>
       </div>
     </header>
 
@@ -40,27 +35,6 @@
         <p>Loading...</p>
       </div>
     </main>
-
-    <div id="settings-modal" class="modal" style="display:none">
-      <div class="modal-backdrop" onclick="toggleSettings()"></div>
-      <div class="modal-content">
-        <div class="modal-header">
-          <h2>Settings</h2>
-          <button class="btn-icon" onclick="toggleSettings()">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
-          </button>
-        </div>
-        <div class="modal-body">
-          <div id="settingsAccount"></div>
-          <label>Backend URL</label>
-          <div class="input-group">
-            <input type="text" id="settingsBackendInput" placeholder="https://your-app.onrender.com">
-            <button onclick="saveSettingsBackend()">Save</button>
-          </div>
-          <p class="hint" style="margin-top:8px">No account needed to browse. Sign in to save progress.</p>
-        </div>
-      </div>
-    </div>
 
     <div id="auth-modal" class="modal" style="display:none">
       <div class="modal-backdrop" onclick="hideAuth()"></div>

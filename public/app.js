@@ -75,15 +75,6 @@ window.addEventListener('popstate',()=>{
 
 function goBack(){if(state.prevState){state.view=state.prevState.view;state.data=state.prevState.data;state.prevState=null;render()}else navigate('home')}
 
-function toggleSettings(){
-  const m=qs('#settings-modal');const s=m.style.display!=='flex'
-  m.style.display=s?'flex':'none'
-  if(s){qs('#settingsBackendInput').value=backendUrl;const acct=qs('#settingsAccount');if(acct)acct.innerHTML=state.user?'<label>Account</label><p style="font-size:14px;color:var(--text);margin-top:8px">'+esc(state.user.username||state.user.email)+'</p><button class="user-btn" style="margin-top:8px" onclick="signOut();toggleSettings()">Sign Out</button>':'<label>Account</label><p class="hint" style="margin-top:8px">Not signed in. <a href="#" onclick="showAuth();toggleSettings();return false">Sign in</a> to save progress.</p>'}
-}
-function saveSettingsBackend(){const b=qs('#settingsBackendInput')?.value.trim()||'';if(b){localStorage.setItem('um_backend',b);backendUrl=b}qs('#settings-modal').style.display='none';location.reload()}
-
-async function render(){renderUserSection();const m=qs('#main');try{if(state.view==='welcome'){m.innerHTML=W()}else if(state.view==='home'){m.innerHTML=H();L()}else if(state.view==='search'){m.innerHTML=S();LS()}else if(state.view==='detail'){m.innerHTML=D();LD()}else if(state.view==='profile'){m.innerHTML=PR();PL()}else if(state.view==='notice'){m.innerHTML=NT()}}catch(e){m.innerHTML=E(e.message)}}
-
 function renderUserSection(){
   const el=qs('#userSection');if(!el)return
   if(state.user){
@@ -97,7 +88,7 @@ document.addEventListener('contextmenu',e=>{
   if(!state.user||state.view!=='detail'||!state.data?.id)return
   const cm=qs('#ctxMenu');if(cm){cm.style.display='none';cm.remove()}
   const m=document.createElement('div');m.id='ctxMenu';m.style.cssText='position:fixed;left:'+e.clientX+'px;top:'+e.clientY+'px;background:var(--surface-elevated);border:1px solid var(--border);border-radius:var(--radius);padding:4px;min-width:150px;z-index:300'
-  m.innerHTML='<button class="speed-option" onclick="markWatched();qso()">mark as watched</button><button class="speed-option" onclick="markPlanned();qso()">plan to watch</button><button class="speed-option" onclick="toggleWatchlist();qso()">toggle watchlist</button>'
+  m.innerHTML='<button class="speed-option" onclick="toggleWatchlist();qso()">toggle watchlist</button>'
   document.body.appendChild(m)
   e.preventDefault()
 })
