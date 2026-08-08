@@ -75,6 +75,8 @@ window.addEventListener('popstate',()=>{
 
 function goBack(){if(state.prevState){state.view=state.prevState.view;state.data=state.prevState.data;state.prevState=null;render()}else navigate('home')}
 
+async function render(){renderUserSection();const m=qs('#main');try{if(state.view==='welcome'){m.innerHTML=W()}else if(state.view==='home'){m.innerHTML=H();L()}else if(state.view==='search'){m.innerHTML=S();LS()}else if(state.view==='detail'){m.innerHTML=D();LD()}else if(state.view==='profile'){m.innerHTML=PR();PL()}else if(state.view==='notice'){m.innerHTML=NT()}}catch(e){m.innerHTML=E(e.message)}}
+
 function renderUserSection(){
   const el=qs('#userSection');if(!el)return
   if(state.user){
