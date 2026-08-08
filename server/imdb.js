@@ -109,8 +109,25 @@ async function popularShows() {
 }
 
 async function trending() {
-  const [movies, shows] = await Promise.all([popularMovies(), popularShows()]);
-  return [...movies.slice(0, 12), ...shows.slice(0, 8)].sort(() => Math.random() - 0.5);
+  const queries = [
+    'action', 'comedy', 'drama', 'horror', 'thriller', 'sci-fi', 'romance', 'animation',
+    'adventure', 'crime', 'mystery', 'fantasy', 'documentary', 'new+movie', 'popular',
+    'tv+series', 'netflix', 'marvel', 'war', 'western', 'musical', 'biography', 'family',
+  ];
+  // Pick 4 random queries each time for variety
+  const picked = [...queries].sort(() => Math.random() - 0.5).slice(0, 4);
+  const results = [];
+  for (const q of picked) {
+    try {
+      const { data } = await fetchWithRetry(`https://v3.sg.media-imdb.com/suggestion/x/${encodeURIComponent(q)}.json`);
+      if (data?.d) for (const i of data.d) {
+        if (i.id?.startsWith('tt') && i.l && posterUrl(i.i) && i.y) {
+          results.push({ id: i.id, title: i.l, year: i.y || null, stars: i.s || '', poster: posterUrl(i.i), type: isShow(i.qid) ? 'tv' : 'movie' });
+        }
+      }
+    } catch {}
+  }
+  return cleanup(results).sort(() => Math.random() - 0.5);
 }
 
 module.exports = { search, details, trending, popularMovies, popularShows };

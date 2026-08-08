@@ -98,18 +98,20 @@ function qso(){const cm=qs('#ctxMenu');if(cm)cm.remove()}
 function W(){return'<div class="welcome"><div class="welcome-card"><h1 style="color:var(--primary)">web-streaming <span class="beta-tag">beta</span></h1><p>a simple streaming site that simply works.</p><ul class="welcome-list"><li>simply doesn\'t spam ads</li><li>simply doesn\'t break half the time</li><li>simply just works</li></ul><p>everything runs with no budget. hosted on render\'s free tier.</p><p style="font-size:13px"><a href="#" onclick="navigate(\'notice\');return false" style="color:var(--primary)">view project notice</a></p><button class="btn btn-primary" style="margin-top:20px;font-size:16px;padding:14px 48px" onclick="navigate(\'home\')">enter</button></div></div>'}
 function enterSite(){state.view='home';navigate('home')}
 
-function H(){return'<div class="section"><div class="loading-screen" id="HL"><div class="spinner"></div><p>Loading...</p></div></div>'}
+function H(){return'<div class="section" id="cwSection" style="display:none"><h2 class="section-title">continue watching</h2><div class="grid" id="cwGrid"></div></div><div class="section"><h2 class="section-title">trending</h2><div class="grid" id="g0"></div></div><div class="loading-screen" id="HL"><div class="spinner"></div><p>loading...</p></div>'}
 
 async function L(){
   try{
-    if(state.user){(async()=>{try{const[wl,cw,wd]=await Promise.all([api('GET','/api/watchlist/list'),api('GET','/api/progress/list?status=watching'),api('GET','/api/progress/list?status=watched')]);if(wl?.length){qs('#main').insertAdjacentHTML('beforeend',sectionHTML('My List',wl.map(i=>({id:i.item_id,title:i.title,poster:i.poster,year:null,type:i.type}))));G('sgMylist',wl)}if(cw?.length){qs('#main').insertAdjacentHTML('afterbegin',sectionHTML('Continue Watching',cw.map(i=>({id:i.item_id,title:i.title,poster:i.poster,year:null,type:i.type,progress:i.watched&&i.duration?i.watched/i.duration:0}))))}if(wd?.length){qs('#main').insertAdjacentHTML('beforeend',sectionHTML('Watched',wd.map(i=>({id:i.item_id,title:i.title,poster:i.poster,year:null,type:i.type}))))}}catch{}})()}
-    const[a,b,c]=await Promise.all([api('GET','/api/trending'),api('GET','/api/popular'),api('GET','/api/popular?type=tv')])
-    const m=qs('#main');m.innerHTML=''
-    if(a.length)m.appendChild(el('section',{cls:'section'},el('h2',{cls:'section-title',text:'Trending'}),el('div',{cls:'grid',id:'g0'})))&&G('g0',a)
-    if(b.length)m.appendChild(el('section',{cls:'section'},el('h2',{cls:'section-title',text:'Popular Movies'}),el('div',{cls:'grid',id:'g1'})))&&G('g1',b)
-    if(c.length)m.appendChild(el('section',{cls:'section'},el('h2',{cls:'section-title',text:'Popular Shows'}),el('div',{cls:'grid',id:'g2'})))&&G('g2',c)
-    if(!a.length&&!b.length&&!c.length)m.innerHTML='<div class="loading-screen"><p>No backend connected. Try searching.</p></div>'
-  }catch(e){qs('#main').innerHTML='<div class="error-view"><p>'+esc(e.message)+'</p></div>'}
+    if(state.user){(async()=>{
+      try{
+        const cw=await api('GET','/api/progress/list?status=watching')
+        if(cw?.length){qs('#cwSection').style.display='';G('cwGrid',cw.map(i=>({id:i.item_id,title:i.title,poster:i.poster,year:null,type:i.type,progress:i.watched&&i.duration?i.watched/i.duration:0})))}
+      }catch{}
+    })()}
+    const a=await api('GET','/api/trending')
+    qs('#HL').style.display='none';G('g0',a)
+    if(!a.length)qs('#HL').outerHTML='<div class="loading-screen"><p>no backend connected. try searching.</p></div>'
+  }catch(e){qs('#HL').outerHTML='<div class="error-view"><p>'+esc(e.message)+'</p></div>'}
 }
 
 function el(tag,opts={},...children){
