@@ -9,7 +9,7 @@ RUN apt-get update \
 WORKDIR /app
 COPY package*.json ./
 COPY vendor/ ./vendor/
-RUN npm ci --omit=dev
+RUN npm install --production
 COPY . .
 
 EXPOSE 3000
