@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
 const path = require('path');
 const env = require('./config/env');
 const rateLimit = require('./middleware/rateLimit');
@@ -29,6 +30,7 @@ function createApp() {
 
   app.set('trust proxy', 1);
   app.use(cors(createCorsOptions()));
+  app.use(cookieParser());
   app.use(express.json({ limit: '1mb' }));
   app.use(rateLimit);
   app.use(express.static(env.publicDir, { maxAge: env.isProduction ? '1h' : 0 }));
