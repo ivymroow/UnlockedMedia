@@ -3,6 +3,7 @@ const sessions = require('../sessions');
 async function requireUser(req, res) {
   const session = sessions.get(req);
   if (!session) { res.status(401).json({ error: 'Not signed in' }); return null; }
+  req._supabaseToken = session.token;
   return session.user;
 }
 
