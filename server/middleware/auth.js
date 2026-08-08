@@ -1,14 +1,19 @@
-const supabase = require('../database/supabase');
+const sessions = require('../sessions');
+const supabase = require('../supabase');
 
-async function requireUser(req, res, next) {
-  const auth = req.headers.authorization;
-  if (!auth?.startsWith('Bearer ')) return res.status(401).json({ error: 'No token' });
+async function requireUser(req, res) {
+  const sid = sessions.readFromCookie(req);
+  if (!sid) { res.status(401).json({ error: 'Not signed in' }); return null; }
+  const session = sessions.get(sid);
+  if (!session) { res.status(401).json({ error: 'Session expired' }); return null; }
+  return session.user;
+}
 
-  const user = await supabase.getUserFromToken(auth.slice(7));
-  if (!user) return res.status(401).json({ error: 'Invalid token' });
-
+async function requireUserMiddleware(req, res, next) {
+  const user = await requireUser(req, res);
+  if (!user) return;
   req.user = user;
   next();
 }
 
-module.exports = { requireUser };
+module.exports = { requireUser, requireUserMiddleware };
