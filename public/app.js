@@ -221,6 +221,11 @@ async function playSource(hash,fi,title,embedUrl){
   if(embedUrl){
     history.replaceState(null,'','#'+getDetailHash()+'&hash='+hash)
     state.view='player';document.title=title+' - web-streaming';qs('#app').innerHTML=ifr(embedUrl,title)
+    // auto-save as watching
+    if(state.user&&state.data?.id){
+      const se=state.data.type==='tv'?selectedSeason:0,ep=state.data.type==='tv'?selectedEpisode:0
+      fetch((state.backendUrl||'')+'/api/progress/save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({id:state.data.id,title:state._title||'',poster:state._poster||'',type:state.data.type||'movie',season:se,episode:ep,duration:0,watched:0,status:'watching'})}).catch(()=>{})
+    }
     return
   }
   if(state.mode!=='backend'){alert('Backend required');return}
