@@ -4,16 +4,12 @@ async function getEmbeds(imdbId, tmdbId, season, episode) {
 
   if (season && episode) {
     embeds.push({ name: '2Embed', url: `https://www.2embed.cc/embedtv/${id}&s=${season}&e=${episode}` });
-    if (tmdbId) {
-      embeds.push({ name: 'MultiEmbed', url: `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1&s=${season}&e=${episode}` });
-      embeds.push({ name: 'Smashy', url: `https://embed.smashystream.com/playere.php?tmdb=${tmdbId}&s=${season}&e=${episode}` });
-    }
+    embeds.push({ name: 'MultiEmbed', url: `https://multiembed.mov/?video_id=${id}&s=${season}&e=${episode}` });
+    embeds.push({ name: 'Smashy', url: `https://embed.smashystream.com/playere.php?imdb=${id}&s=${season}&e=${episode}` });
   } else {
     embeds.push({ name: '2Embed', url: `https://www.2embed.cc/embed/${id}` });
-    if (tmdbId) {
-      embeds.push({ name: 'MultiEmbed', url: `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1` });
-      embeds.push({ name: 'Smashy', url: `https://embed.smashystream.com/playere.php?tmdb=${tmdbId}` });
-    }
+    embeds.push({ name: 'MultiEmbed', url: `https://multiembed.mov/?video_id=${id}` });
+    embeds.push({ name: 'Smashy', url: `https://embed.smashystream.com/playere.php?imdb=${id}` });
   }
 
   return embeds.map((e, i) => ({ provider: e.name, embedUrl: e.url, hash: 'embed-' + i, quality: 'HD', seeds: 999, peers: 0, size: '', fileIndex: 0 }));
