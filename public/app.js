@@ -93,6 +93,16 @@ function renderUserSection(){
 }
 function toggleUserMenu(){const d=qs('#userDrop');if(d)d.style.display=d.style.display==='block'?'none':'block'}
 document.addEventListener('click',e=>{const d=qs('#userDrop'),b=qs('#userDrop')?.previousElementSibling;if(d&&!d.contains(e.target)&&e.target!==b)d.style.display='none'})
+document.addEventListener('contextmenu',e=>{
+  if(!state.user||state.view!=='detail'||!state.data?.id)return
+  const cm=qs('#ctxMenu');if(cm){cm.style.display='none';cm.remove()}
+  const m=document.createElement('div');m.id='ctxMenu';m.style.cssText='position:fixed;left:'+e.clientX+'px;top:'+e.clientY+'px;background:var(--surface-elevated);border:1px solid var(--border);border-radius:var(--radius);padding:4px;min-width:150px;z-index:300'
+  m.innerHTML='<button class="speed-option" onclick="markWatched();qso()">mark as watched</button><button class="speed-option" onclick="markPlanned();qso()">plan to watch</button><button class="speed-option" onclick="toggleWatchlist();qso()">toggle watchlist</button>'
+  document.body.appendChild(m)
+  e.preventDefault()
+})
+document.addEventListener('click',()=>{const cm=qs('#ctxMenu');if(cm){cm.remove()}})
+function qso(){const cm=qs('#ctxMenu');if(cm)cm.remove()}
 
 function W(){return'<div class="welcome"><div class="welcome-card"><h1 style="color:var(--primary)">web-streaming <span class="beta-tag">beta</span></h1><p>a simple streaming site that simply works.</p><ul class="welcome-list"><li>simply doesn\'t spam ads</li><li>simply doesn\'t break half the time</li><li>simply just works</li></ul><p>everything runs with no budget. hosted on render\'s free tier.</p><p style="font-size:13px"><a href="#" onclick="navigate(\'notice\');return false" style="color:var(--primary)">view project notice</a></p><button class="btn btn-primary" style="margin-top:20px;font-size:16px;padding:14px 48px" onclick="navigate(\'home\')">enter</button></div></div>'}
 function enterSite(){state.view='home';navigate('home')}
