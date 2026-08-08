@@ -21,4 +21,10 @@ router.get('/get', asyncHandler(async (req, res) => {
   res.json(item || {});
 }));
 
+router.post('/delete', asyncHandler(async (req, res) => {
+  const c = require('../supabase').getClient(req._supabaseToken);
+  await c.from('watch_progress').delete().eq('user_id', req.user.id).eq('item_id', req.body.id);
+  res.json({ ok: true });
+}));
+
 module.exports = router;

@@ -81,7 +81,7 @@ function renderUserSection(){
   const el=qs('#userSection');if(!el)return
   if(state.user){
     const d=state.user.username||state.user.email
-    el.innerHTML='<div class="user-menu" style="position:relative"><button class="user-btn" onclick="toggleUserMenu()">'+esc(d)+' <span style="font-size:10px">▼</span></button><div class="user-drop" id="userDrop" style="display:none;position:absolute;top:100%;right:0;background:var(--surface-elevated);border:1px solid var(--border);border-radius:var(--radius);padding:4px;min-width:160px;z-index:200"><button class="speed-option" onclick="navigate(\'profile\');toggleUserMenu()">profile</button><button class="speed-option" onclick="markWatched();toggleUserMenu()">mark as watched</button><button class="speed-option" onclick="markPlanned();toggleUserMenu()">plan to watch</button><button class="speed-option" onclick="signOut();toggleUserMenu()">sign out</button></div></div>'
+    el.innerHTML='<div class="user-menu" style="position:relative"><button class="user-btn" onclick="toggleUserMenu()">'+esc(d)+' <span style="font-size:10px">▼</span></button><div class="user-drop" id="userDrop" style="display:none;position:absolute;top:100%;right:0;background:var(--surface-elevated);border:1px solid var(--border);border-radius:var(--radius);padding:4px;min-width:120px;z-index:200"><button class="speed-option" onclick="navigate(\'profile\');toggleUserMenu()">profile</button><button class="speed-option" onclick="signOut();toggleUserMenu()">sign out</button></div></div>'
   }else el.innerHTML='<button class="user-btn" onclick="showAuth()">sign in</button>'
 }
 function toggleUserMenu(){const d=qs('#userDrop');if(d)d.style.display=d.style.display==='block'?'none':'block'}
@@ -95,7 +95,18 @@ document.addEventListener('contextmenu',e=>{
   e.preventDefault()
 })
 document.addEventListener('click',()=>{const cm=qs('#ctxMenu');if(cm){cm.remove()}})
+document.addEventListener('contextmenu',e=>{
+  const card=e.target.closest('.card');if(!card||state.view!=='profile'||!state.user)return
+  const id=card.dataset.id;if(!id)return
+  const cm=qs('#ctxMenu');if(cm){cm.style.display='none';cm.remove()}
+  const m=document.createElement('div');m.id='ctxMenu';m.style.cssText='position:fixed;left:'+e.clientX+'px;top:'+e.clientY+'px;background:var(--surface-elevated);border:1px solid var(--border);border-radius:var(--radius);padding:4px;min-width:150px;z-index:300'
+  m.innerHTML='<button class="speed-option" onclick="moveProgress(\''+id+'\',\'watched\');qso()">mark watched</button><button class="speed-option" onclick="moveProgress(\''+id+'\',\'planned\');qso()">plan to watch</button><button class="speed-option" onclick="deleteProgress(\''+id+'\');qso()">remove</button>'
+  document.body.appendChild(m)
+  e.preventDefault()
+})
 function qso(){const cm=qs('#ctxMenu');if(cm)cm.remove()}
+async function moveProgress(id,status){fetch((state.backendUrl||'')+'/api/progress/save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({id,status,title:'',poster:'',type:'movie',season:0,episode:0,duration:0,watched:0})}).catch(()=>{});PL()}
+async function deleteProgress(id){fetch((state.backendUrl||'')+'/api/progress/delete',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({id})}).catch(()=>{});PL()}
 
 function W(){return'<div class="welcome"><div class="welcome-card"><h1 style="color:var(--primary)">web-streaming <span class="beta-tag">beta</span></h1><p>a simple streaming site that simply works.</p><ul class="welcome-list"><li>simply doesn\'t spam ads</li><li>simply doesn\'t break half the time</li><li>simply just works</li></ul><p>everything runs with no budget. hosted on render\'s free tier.</p><p style="font-size:13px"><a href="#" onclick="navigate(\'notice\');return false" style="color:var(--primary)">view project notice</a></p><button class="btn btn-primary" style="margin-top:20px;font-size:16px;padding:14px 48px" onclick="navigate(\'home\')">enter</button></div></div>'}
 function enterSite(){state.view='home';navigate('home')}
@@ -107,11 +118,7 @@ async function L(){
     if(state.user){(async()=>{try{const cw=await api('GET','/api/progress/list?status=watching');if(cw?.length){qs('#main').insertAdjacentHTML('afterbegin','<div class="section"><h2 class="section-title">continue watching</h2><div class="grid" id="cwGrid"></div></div>');G('cwGrid',cw.map(i=>({id:i.item_id,title:i.title,poster:i.poster,year:null,type:i.type,progress:i.watched&&i.duration?i.watched/i.duration:0})))}}catch{}})()}
     const a=await api('GET','/api/trending');qs('#HL').style.display='none'
     if(!a.length){qs('#HL').outerHTML='<div class="loading-screen"><p>no backend connected. try searching.</p></div>';return}
-    // Store for filtering
     window._trending=a
-    // Hero banner
-    const hero=a.find(x=>x.poster&&x.overview)||a.find(x=>x.poster)||a[0]
-    if(hero){qs('#main').insertAdjacentHTML('afterbegin','<div class="hero" style="height:60vh;min-height:400px;padding:64px 32px;position:relative;overflow:hidden"><img src="'+hero.poster+'" class="hero-bg" onerror="this.parentElement.style.display=\'none\'"><div class="hero-gradient"></div><div class="hero-content" style="max-width:600px"><h1 class="hero-logo" style="font-size:36px">'+esc(hero.title||'')+'</h1><div class="hero-meta" style="display:flex;gap:16px;margin:8px 0 16px;font-size:14px;color:var(--text-secondary)">'+(hero.year?'<span>'+hero.year+'</span>':'')+'<span style="color:#f5c518">★ '+((hero.rating||0).toFixed(1)||'--')+'</span></div><p class="hero-overview">'+esc(hero.overview||'')+'</p><button class="btn btn-primary" style="margin-top:16px;padding:14px 36px;font-size:16px" onclick="navigate(\'detail\',{id:\''+hero.id+'\',type:\''+(hero.type||'movie')+'\',title:\''+esc(hero.title||'')+'\',year:\''+(hero.year||'')+'\'})">watch now</button></div></div>')}
     // Filter bar
     qs('#main').insertAdjacentHTML('beforeend','<div class="section" style="padding-bottom:0"><div style="display:flex;gap:8px;margin-bottom:16px"><button class="profile-tab active" onclick="filterTrending(\'all\',this)">all</button><button class="profile-tab" onclick="filterTrending(\'movie\',this)">movies</button><button class="profile-tab" onclick="filterTrending(\'tv\',this)">tv shows</button></div><div class="grid" id="g0"></div></div>')
     G('g0',a)
@@ -373,18 +380,6 @@ async function doAuth(){
   try{const r=await api('POST',authMode==='signup'?'/api/auth/signup':'/api/auth/signin',body);if(r.ok){state.user=r.user}hideAuth();render()}catch(e){qs('#authError').textContent=e.message}
 }
 function toggleAuthMode(){authMode=authMode==='signin'?'signup':'signin';qs('#authModalTitle').textContent=authMode==='signin'?'sign in':'sign up';qs('#authToggle').innerHTML=authMode==='signin'?'don\'t have an account? <a href=\"#\" onclick=\"toggleAuthMode();return false\" style=\"color:var(--primary)\">sign up</a>':'already have an account? <a href=\"#\" onclick=\"toggleAuthMode();return false\" style=\"color:var(--primary)\">sign in</a>'}
-async function markWatched(){
-  if(!state.user||!state.data?.id)return
-  const se=state.data.type==='tv'?selectedSeason:0,ep=state.data.type==='tv'?selectedEpisode:0
-  fetch((state.backendUrl||'')+'/api/progress/save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({id:state.data.id,title:state._title||state.data.title||'',poster:state._poster||'',type:state.data.type||'movie',season:se,episode:ep,duration:0,watched:0,status:'watched'})}).catch(()=>{})
-  alert('marked as watched')
-}
-async function markPlanned(){
-  if(!state.user||!state.data?.id)return
-  const se=state.data.type==='tv'?selectedSeason:0,ep=state.data.type==='tv'?selectedEpisode:0
-  fetch((state.backendUrl||'')+'/api/progress/save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({id:state.data.id,title:state._title||state.data.title||'',poster:state._poster||'',type:state.data.type||'movie',season:se,episode:ep,duration:0,watched:0,status:'planned'})}).catch(()=>{})
-  alert('added to plan to watch')
-}
 function signOut(){fetch((state.backendUrl||'')+'/api/auth/signout',{method:'POST',credentials:'include'}).catch(()=>{});state.user=null;render()}
 
 function PR(){return'<div class="profile"><button class="detail-back" onclick="navigate(\'home\')"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg> Back</button><h1>Profile</h1><div class="profile-search"><input type="text" id="psInput" class="profile-search-input" placeholder="Search movies & shows to add..." autocomplete="off"><div class="profile-search-drop" id="psDrop" style="display:none"></div></div><div class="profile-tabs"><button class="profile-tab active" data-tab="watching">Continue Watching</button><button class="profile-tab" data-tab="watchlist">Watchlist</button><button class="profile-tab" data-tab="watched">Watched</button><button class="profile-tab" data-tab="planned">Plan to Watch</button></div><div class="grid" id="profileGrid"></div><div class="loading-screen" id="pLd"><div class="spinner"></div><p>Loading...</p></div></div>'}
